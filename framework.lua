@@ -15,6 +15,8 @@ local framework = {}
 local Plugin = Emitter:extend()
 framework.Plugin = Plugin
 
+framework.boundary = boundary
+
 function Plugin:initialize(params)
 	self.pollInterval = 1000
 	self.source = os.hostname()
