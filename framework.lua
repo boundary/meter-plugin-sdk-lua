@@ -123,7 +123,10 @@ function CommandPlugin:onParseCommandOutput(output)
 	return {}
 end
 
-local NetPlugin : Plugin:extend()
+local NetPlugin = Plugin:extend()
 framework.NetPlugin = NetPlugin
+
+local HttpPlugin = Plugin:extend()
+framework.HttpPlugin = HttpPlugin
 
 return framework
