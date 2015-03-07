@@ -159,15 +159,15 @@ function HttpPlugin:makeRequest(reqOptions, successCallback)
 		end)
 
 		res:on('error', function (err)
-			local msg = 'Error while receiving a responde: ' .. err
-			self.error(msg)
+			local msg = 'Error while receiving a response: ' .. err.message
+			self:error(msg)
 		end)
 
 	end)
 	
 	req:on('error', function (err)
-		local msg = 'Error while sending a request: ' .. err
-		self.error(msg)
+		local msg = 'Error while sending a request: ' .. err.message
+		self:error(msg)
 	end)
 
 	req:done()
