@@ -10,8 +10,118 @@ local string = require('string')
 local os = require('os')
 local io = require('io')
 local http = require('http')
+local talbe = require('table')
 
 local framework = {}
+
+framework.string = {}
+framework.functional = {}
+framework.table = {}
+framework.util = {}
+
+function framework.util.megaBytesToBytes(mb)
+	return mb * 1024 * 1024
+end
+
+function framework.functional.partial(func, x) 
+	return function (...)
+		return func(x, ...) 
+	end
+end
+
+function framework.functional.compose(f, g)
+	return function(...) 
+		return g(f(...))
+	end
+end
+
+function framework.table.get(key, map)
+	return map[key]
+end
+
+function framework.table.keys(t)
+	local result = {}
+	for k,_ in pairs(t) do
+		table.insert(result, k)
+	end
+
+	return result
+end
+
+function framework.table.clone(t)
+	if type(t) ~= 'table' then return t end
+
+	local meta = getmetatable(t)
+	local target = {}
+	for k,v in pairs(t) do
+		if type(v) == 'table' then
+			target[k] = clone(v)
+		else
+			target[k] = v
+		end
+	end
+	setmetatable(target, meta)
+	return target
+end
+
+function framework.string.contains(pattern, str)
+	local s,e = string.find(str, pattern)
+
+	return s ~= nil
+end
+
+function framework.string.escape(str)
+	local s, c = string.gsub(str, '%.', '%%.')
+	s, c = string.gsub(s, '%-', '%%-')
+	return s
+end
+
+function framework.string.split(self, pattern)
+	local outResults = {}
+	local theStart = 1
+	local theSplitStart, theSplitEnd = string.find(self, pattern, theStart)
+	while theSplitStart do
+	  table.insert( outResults, string.sub( self, theStart, theSplitStart-1 ) )
+	  theStart = theSplitEnd + 1
+	  theSplitStart, theSplitEnd = string.find( self, pattern, theStart )
+	end
+	table.insert( outResults, string.sub( self, theStart ) )
+	return outResults
+end
+
+function framework.string.trim(self)
+   return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
+end 
+
+function framework.string.isEmpty(str)
+	return (str == nil or framework.string.trim(str) == '')
+end
+
+function framework.string.notEmpty(str)
+	return not framework.string.isEmpty(str)
+end
+
+-- You can call framework.string() to export all functions to the string table to the global table for easy access.
+function exportable(t)
+	setmetatable(t, {
+		__call = function (t, warn)
+			for k,v in pairs(t) do 
+				if (warn) then
+					if _G[k] ~= nil then
+						print('Warning: Overriding function ' .. k ..' on global space.')
+					end
+				end
+				_G[k] = v
+			end
+		end
+	})
+end
+
+-- Allow to export functions to global table
+exportable(framework.string)
+exportable(framework.util)
+exportable(framework.functional)
+exportable(framework.table)
 
 local DataSource = Emitter:extend()
 framework.DataSource = DataSource
@@ -190,5 +300,32 @@ function HttpPlugin:onParseResponse(data)
 	print(data)
 	return {}
 end
+
+local Accumulator = Emitter:extend()
+function Accumulator:initialize()
+	self.map = {}
+end
+
+function Accumulator:accumulate(key, value)
+	local oldValue = self.map[key]
+	if oldValue == nil then
+		oldValue = value	
+	end
+
+	self.map[key] = value
+	local diff = value - oldValue
+
+	return diff
+end
+
+function Accumulator:reset(key)
+	self.map[key] = nil
+end
+
+function Accumulator:resetAll()
+	self.map = {}
+end
+
+framework.Accumulator = Accumulator
 
 return framework
