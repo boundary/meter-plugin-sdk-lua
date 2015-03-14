@@ -10,7 +10,8 @@ local string = require('string')
 local os = require('os')
 local io = require('io')
 local http = require('http')
-local talbe = require('table')
+local table = require('table')
+local net = require('net')
 
 local framework = {}
 
@@ -132,6 +133,38 @@ end
 function DataSource:fetch(caller, callback)
 	error('fetch: you must implement on class or object instance.')
 end
+
+local NetDataSource = DataSource:extend()
+function NetDataSource:initialize(host, port)
+	self.host = host
+	self.port = port
+end
+
+function NetDataSource:onFetch(socket)
+	p('you must override the NetDataSource:onFetch')
+end
+
+function NetDataSource:fetch(context, callback)
+
+	local socket
+	socket = net.createConnection(self.port, self.host, function ()
+
+		self:onFetch(socket)
+
+		if callback then
+			socket:once('data', function (data)
+				callback(data)
+				socket:shutdown()
+			end)
+		else
+			socket:shutdown()
+		end
+
+		end)
+	socket:on('error', function (err) self:emit('error', 'Socket error: ' .. err.message) end)
+end
+
+framework.NetDataSource = NetDataSource
 
 local Plugin = Emitter:extend()
 framework.Plugin = Plugin
