@@ -1,5 +1,16 @@
--- [author] Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
-local boundary = require('boundary')
+---------------
+---- ## A Boundary Plugin Framework for Luvit.
+----
+---- For easy development of custom Boundary.com plugins.
+----
+---- [Github Page](https://github.com/GabrielNicolasAvellaneda/boundary-plugin-framework-lua)
+----
+---- @author Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
+---- @copyright 2015
+---- @license MIT
+---------------
+local fs = require('fs')
+local json = require('json')
 local Emitter = require('core').Emitter
 local Error = require('core').Error
 local Object = require('core').Object
@@ -13,8 +24,19 @@ local http = require('http')
 local table = require('table')
 local net = require('net')
 local json = require('json')
-
 local framework = {}
+local params = {}
+
+-- import param.json data into a Lua table (boundary.param)
+local json_blob
+if (pcall(function () json_blob = fs.readFileSync("param.json") end)) then
+  pcall(function () params = json.parse(json_blob) end)
+else
+	print('param.json not found!')
+end
+
+framework.params = params
+
 
 framework.string = {}
 framework.functional = {}
@@ -230,18 +252,28 @@ function Emitter:propagate(eventName, target)
 	end
 end
 
+
+--- DataSource class.
+-- @type DataSource
 local DataSource = Emitter:extend()
+--- DataSource is the base class for any DataSource you want to implement.
 framework.DataSource = DataSource
+--- DataSource constructor.
+-- @name DataSource:new
 function DataSource:initialize(params)
 	self.params = params
 end
 
+--- Fetch data from the datasource. This is an abstract method.
 function DataSource:fetch(caller, callback)
 	error('fetch: you must implement on class or object instance.')
 end
 
+--- NetDataSource class.
+-- @type NetDataSource
 local NetDataSource = DataSource:extend()
 function NetDataSource:initialize(host, port)
+
 	self.host = host
 	self.port = port
 end
@@ -250,6 +282,9 @@ function NetDataSource:onFetch(socket)
 	p('you must override the NetDataSource:onFetch')
 end
 
+--- Fetch data from the configured host and port
+-- @param context How calls this functions
+-- @func callback A callback that gets called when there is some data on the socket.
 function NetDataSource:fetch(context, callback)
 
 	local socket
@@ -272,19 +307,24 @@ end
 
 framework.NetDataSource = NetDataSource
 
+--- Plugin Class.
+-- @type Plugin
 local Plugin = Emitter:extend()
 framework.Plugin = Plugin
 
-framework.boundary = boundary
+function Plugin:_poll()
 
-function Plugin:poll()
-	
 	self:emit('before_poll')
 	
 	self:onPoll()
 
 	self:emit('after_poll')
-	timer.setTimeout(self.pollInterval, function () self.poll(self) end)
+	timer.setTimeout(self.pollInterval, function () self:_poll() end)
+end
+
+--- Run the plugin and start polling from the configured DataSource
+function Plugin:run()
+	self:_poll()	
 end
 
 function Plugin:report(metrics)
@@ -307,10 +347,24 @@ function Plugin:format(metric, value, source, timestamp)
 	return self:onFormat(metric, value, source, timestamp) 
 end
 
+--- Called by the framework before formating the metric output. 
+-- @string metric the metric name
+-- @param value the value to format
+-- @string source the source to report for the metric
+-- @param timestamp the time the metric was retrieved
+-- You can override this on your plugin instance.
 function Plugin:onFormat(metric, value, source, timestamp)
 	return string.format('%s %f %s %s', metric, value, source, timestamp)
 end
 
+--- Plugin constructor.
+-- A base plugin implementation that accept a dataSource and polls periodically for new data and format the output so the boundary meter can collect the metrics.
+-- @param params is a table of options that can be:
+-- 	pollInterval (requried) the poll interval between data fetchs.
+-- 	source (optional)
+--	version (options) the version of the plugin. 		
+-- @param dataSource A DataSource that will be polled for data.
+-- @name Plugin:new
 function Plugin:initialize(params, dataSource)
 	self.pollInterval = params.pollInterval or 1000
 	self.source = params.source or os.hostname()
@@ -390,6 +444,7 @@ function HttpPlugin:initialize(params)
 	}
 end
 
+--- Called when the Plugin detect and error in one of his components.
 function Plugin:error(err)
 	local msg = ''
 	if type(err) == 'table' then
@@ -399,6 +454,10 @@ function Plugin:error(err)
 	end
 	print(msg)
 end
+
+local PollingPlugin = Plugin:extend()
+
+framework.PollingPlugin = PollingPlugin
 
 function HttpPlugin:makeRequest(reqOptions, successCallback)
 	local req = http.request(reqOptions, function (res)
@@ -444,11 +503,21 @@ function HttpPlugin:onParseResponse(data)
 	return {}
 end
 
+--- Acumulator Class
+-- @type Accumulator
 local Accumulator = Emitter:extend()
+ 
+--- Accumulator constructor.
+-- Keep track of values so we can return the delta for accumulated metrics.
+-- @name Accumulator:new
 function Accumulator:initialize()
 	self.map = {}
 end
 
+--- Accumulates a value an return the delta between the actual an latest value.
+-- @string key the key for the item
+-- @param value the item value
+-- @return diff the delta between the latests and actual value.
 function Accumulator:accumulate(key, value)
 	local oldValue = self.map[key]
 	if oldValue == nil then
@@ -461,14 +530,72 @@ function Accumulator:accumulate(key, value)
 	return diff
 end
 
+--- Reset the specified value
+-- @string key A key to untrack
 function Accumulator:reset(key)
 	self.map[key] = nil
 end
 
+--- Clean up all the tracked key/values.
 function Accumulator:resetAll()
 	self.map = {}
 end
 
 framework.Accumulator = Accumulator
+
+--- DataSourcePoller class
+-- @type DataSourcePoller
+local DataSourcePoller = Emitter:extend() 
+
+--- DataSourcePoller constructor.
+-- DataSourcePoller Polls a DataSource at the specified interval and calls a callback when there is some data available. 
+-- @int pollInterval number of milliseconds to poll for data 
+-- @param dataSource A DataSource to be polled
+-- @name DataSourcePoller:new 
+function DataSourcePoller:initialize(pollInterval, dataSource)
+	self.pollInterval = pollInterval
+	self.dataSource = dataSource
+end
+
+function DataSourcePoller:_poll(callback)
+	self.dataSource:fetch(self, callback)
+
+	timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
+end
+
+--- Start polling for data.
+-- @func callback A callback function to call when the DataSource returns some data. 
+function DataSourcePoller:run(callback)
+	self:_poll(callback)
+end
+
+--- RandomDataSource class
+-- @type RandomDataSource
+local RandomDataSource = DataSource:extend()
+
+--- RandomDataSource constructor
+-- @int minValue the lower bounds for the random number generation.
+-- @int maxValue the upper bound for the random number generation.
+--@usage local ds = RandomDataSource:new(1, 100)
+function RandomDataSource:initialize(minValue, maxValue)
+	self.minValue = minValue
+	self.maxValue = maxValue
+end
+
+--- Returns a random number
+-- @param context the object that called the fetch
+-- @func callback A callback to call with the random generated number
+-- @usage local ds = RandomDataSource:new(1, 100) -- Generate numbers from 1 to 100
+--ds.fetch(nil, print)
+function RandomDataSource:fetch(context, callback)
+	
+	local value = math.random(self.minValue, self.maxValue)
+	if not callback then error('fetch: you must set a callback when calling fetch') end
+
+	callback(value)
+end
+
+framework.RandomDataSource = RandomDataSource
+framework.DataSourcePoller = DataSourcePoller
 
 return framework
