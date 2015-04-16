@@ -6,7 +6,7 @@
 ---- [Github Page](https://github.com/GabrielNicolasAvellaneda/boundary-plugin-framework-lua)
 ----
 ---- @author Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
----- @copyright 2015
+---- @copyright Boundary.com 2015
 ---- @license MIT
 ---------------
 local fs = require('fs')
@@ -246,12 +246,15 @@ exportable(framework.functional)
 exportable(framework.table)
 exportable(framework.http)
 
+-- TODO: Commit this to luvit repository
 function Emitter:propagate(eventName, target)
-	if target.emit then
+	if target and target.emit then
 		self:on(eventName, function (...) target:emit(eventName, ...) end)
+		return target
 	end
-end
 
+	return self
+end
 
 --- DataSource class.
 -- @type DataSource
@@ -555,6 +558,7 @@ local DataSourcePoller = Emitter:extend()
 function DataSourcePoller:initialize(pollInterval, dataSource)
 	self.pollInterval = pollInterval
 	self.dataSource = dataSource
+	dataSource:propagate('error', self)
 end
 
 function DataSourcePoller:_poll(callback)
