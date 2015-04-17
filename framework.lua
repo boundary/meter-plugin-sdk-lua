@@ -137,6 +137,15 @@ function framework.http.post(options, data, callback, dataType)
   return req
 end
 
+--- Wraps a function to calculate the time passed between the wrap and the function execution.
+function framework.util.timed(func, startTime)
+  local startTime = startTime or os.time()
+
+  return function(...) 
+    return os.time() - startTime, func(...)
+  end
+end
+
 function framework.util.megaBytesToBytes(mb)
   return mb * 1024 * 1024
 end
@@ -211,10 +220,12 @@ function framework.string.split(self, pattern)
   return outResults
 end
 
+--- Trim blanks from the string
 function framework.string.trim(self)
    return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
 end 
 
+--- Check if the string is empty. Before checking it will be trimmed to remove blank spaces.
 function framework.string.isEmpty(str)
   return (str == nil or framework.string.trim(str) == '')
 end
@@ -309,6 +320,15 @@ function NetDataSource:fetch(context, callback)
 end
 
 framework.NetDataSource = NetDataSource
+
+
+--- WebRequestDataSource Class
+-- @type WebRequestDataSource
+
+
+
+
+
 
 --- Plugin Class.
 -- @type Plugin
