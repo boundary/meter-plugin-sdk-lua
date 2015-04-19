@@ -21,8 +21,11 @@ local string = require('string')
 local os = require('os')
 local io = require('io')
 local http = require('http')
-local table = require('table')
+local https = require('https')
 local net = require('net')
+local bit = require('bit')
+local table = require('table')
+
 local json = require('json')
 local framework = {}
 local params = {}
@@ -65,98 +68,103 @@ function os.hostname (maxlen)
   return ffi.string(buf)
 end
 
-function framework.http.get(options, data, callback, dataType, debug)
-  local headers = {}
-  if type(options.headers) == 'table' then
-    headers = options.headers
-  end
+local encode_alphabet = {
+	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
+}
 
-  if dataType == 'json' then
-    headers['Accept'] = 'application/json'
-  end
-  
-  local reqOptions = {
-    host = options.host,
-    port = options.port,
-    path = options.path,
-    headers = headers
-  }
-
-  local req = http.request(reqOptions, function (res) 
-
-
-    local response = ''
-    res:on('end', function ()
-      if dataType == 'json' then
-        response = json.parse(response) 
-      end
-
-      if callback then callback(response) end
-    end)
-
-    res:on('data', function (chunk) 
-      if debug then
-        print(chunk)
-      end
-      response = response .. framework.string.trim(chunk)
-    end)
-
-    -- Propagate errors
-    res:on('error', function (err)  req:emit('error', err.message) end)
-  end)
-
-  if data ~= nil then
-    req:write(data)
-  end
-  req:done()
-
-  return req
+local decode_alphabet = {}
+for i, v in ipairs(encode_alphabet) do
+	decode_alphabet[v] = i-1
 end
 
-function framework.http.post(options, data, callback, dataType)
-  local headers = {} 
-  if type(options.headers) == 'table' then
-    headers = options.headers
-  end
-
-  if dataType == 'json' then
-    headers['Content-Type'] = 'application/json'
-    headers['Content-Length'] = #data 
-    headers['Accept'] = 'application/json'
-  end
-
-  local reqOptions = {
-    host = options.host,
-    port = options.port,
-    path = options.path,
-    method = 'POST',
-    headers = headers
-  }
-
-  local req = http.request(reqOptions, function (res) 
-  
-    local response = ''
-    res:on('end', function () 
-      if dataType == 'json' then
-        response = json.parse(response) 
-      end
-
-      if callback then callback(response) end 
-    end)
-
-    res:on('data', function (chunk) 
-      
-      response = response .. chunk
-    end) 
-
-    res:on('error', function (err)  req:emit('error', err.message) end)
-  end)
-
-  req:write(data)
-  req:done()
-
-  return req
+local function translate(sixbit)
+	return encode_alphabet[sixbit + 1] 
 end
+
+local function unTranslate(char)
+	return decode_alphabet[char]
+end
+
+local function toBytes(str)
+	return { str:byte(1, #str) }
+end
+
+local function mask6bits(byte)
+	return bit.band(0x3f, byte)
+end
+
+local function pad(bytes)
+	local to_pad = 3 - #bytes % 3 
+	while to_pad > 0 and to_pad ~= 3 do
+		table.insert(bytes, 0x0)
+		to_pad = to_pad - 1
+	end
+
+	return bytes
+end
+
+local function encode(str)
+  local bytes = toBytes(str)
+  local bytesTotal = #bytes
+  if bytesTotal == 0 then
+  	  return ''
+  end
+  bytes = pad(bytes)
+  local output = {}
+ 
+  local i = 1
+  while i < #bytes do
+    -- read three bytes into a 24 bit buffer to produce 4 coded bytes.
+    local buffer = bit.rol(bytes[i], 16)	
+    buffer = bit.bor(buffer, bit.rol(bytes[i+1], 8))
+    buffer = bit.bor(buffer, bytes[i+2])
+
+    -- get six bits at a time and translate to base64
+    for j = 18, 0, -6 do
+		table.insert(output, translate(mask6bits(bit.ror(buffer, j))))
+	end
+	i = i + 3
+  end
+	-- If was padded then replace with = characters 
+   if bytesTotal % 3 == 1  then
+   	   output[#output-1] = '='
+   	   output[#output] = '='
+  elseif bytesTotal % 3 == 2 then
+	output[#output] = '='
+   end
+  
+  return table.concat(output)
+end
+
+local function decode(str)
+	-- take four encoded octets and produce 3 decoded bytes.
+	local output = {}
+	local i = 1
+	while i < #str do
+		local buffer = 0
+		-- get the octet represented by the coded base64 char
+		-- shift left by 6 bits and or 
+		-- mask the 3 bytes, and convert to ascii
+
+		for j = 18, 0, -6 do
+			local octet = unTranslate(str:sub(i, i))
+			buffer = bit.bor(bit.rol(octet, j), buffer)
+			i = i + 1
+		end
+
+		for j = 16, 0, -8 do
+			local byte = bit.band(0xff, bit.ror(buffer, j))
+			table.insert(output, byte)
+		end
+	end
+
+	return string.char(unpack(output))
+end
+
+framework.util.base64Encode = encode
+framework.util.base64Decode = decode
 
 --- Wraps a function to calculate the time passed between the wrap and the function execution.
 function framework.util.timed(func, startTime)
@@ -338,9 +346,6 @@ end
 
 framework.NetDataSource = NetDataSource
 
-
---- WebRequestDataSource Class
--- @type WebRequestDataSource
 
 --- Plugin Class.
 -- @type Plugin
@@ -633,6 +638,8 @@ function PollerCollection:run(callback)
 
 end
 
+--- WebRequestDataSource Class
+-- @type WebRequestDataSource
 local WebRequestDataSource = DataSource:extend()
 function WebRequestDataSource:initialize(params)
 	local options = params
@@ -646,45 +653,71 @@ function WebRequestDataSource:initialize(params)
   self.info = options.meta
 end
 
-function WebRequestDataSource:request(reqOptions, callback)
-  return http.get(reqOptions, callback)
-end
+local base64Encode = framework.util.base64Encode
 
 function WebRequestDataSource:fetch(context, callback)
   assert(callback, 'WebRequestDataSource:fetch: callback is required')
 
-	local headers = nil 
+  local start_time = os.time()
+  local options = self.options
+
+	local headers = {} 
 	local buffer = ''
-	local reqOptions = {
-		host = self.options.host,
-		port = self.options.port,
-		path = self.options.path,
-		headers = headers
-	}
 
 	local success = function (res) 
 
     if self.wait_for_end then
 		  res:on('end', function ()
-        callback(buffer, self.info)
+        local exec_time = os.time() - start_time  
+        callback(buffer, self.info, exec_time)
+
+        res:destroy()
       end)
     else 
       res:once('data', function (data)
+        local exec_time = os.time() - start_time
+        buffer = buffer .. data
+        res:on('data', function (data) 
+			    buffer = buffer .. data
+        end)
+
         if not self.wait_for_end then
-          callback(buffer, self.info)
+          callback(buffer, self.info, exec_time)
         end
       end)
     end 
-
-		res:on('data', function (data) 
-			buffer = buffer .. data
-    end)
-
+		
     res:propagate('error', self)
 	end
 
-	local req = self:request(reqOptions, success)
+  options.headers = {}
+  options.headers['User-Agent'] = 'Boundary Meter <support@boundary.com>'
+
+  if options.auth then
+    headers['Authorization'] = 'Basic ' .. base64Encode(options.auth)
+  end
+  
+  local data = options.data
+  local body
+  if data ~= nil and table.getn(data) > 0 then
+    body = table.concat(data, '&') 
+    options.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    options.headers['Content-Length'] = #body 
+  end
+
+  local req
+  if options.protocol == 'https' then
+    req = https.request(options, success)
+  else
+    req = http.request(options, success)
+  end
+
+  if body and #body > 0 then
+    req:write(body)
+  end
+  
 	req:propagate('error', self)
+  req:done()
 end
 
 
@@ -720,5 +753,6 @@ framework.WebRequestDataSource = WebRequestDataSource
 framework.PollerCollection = PollerCollection
 
 return framework
+
 
 
