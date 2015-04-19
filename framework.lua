@@ -44,6 +44,27 @@ framework.table = {}
 framework.util = {}
 framework.http = {}
 
+
+local ffi = require('ffi')
+
+-- Added some mising function in the luvit > 2.0 release
+
+ffi.cdef [[
+  int gethostname(char *name, unsigned int namelen);
+  ]]
+
+--[[
+  Return the hostname
+  @param maxlen{integer,optional} defaults to 255
+--]]
+function os.hostname (maxlen)
+  maxlen = maxlen or 255
+  local buf = ffi.new("uint8_t[?]", maxlen)
+  local res = ffi.C.gethostname(buf, maxlen)
+  assert(res == 0)
+  return ffi.string(buf)
+end
+
 function framework.http.get(options, data, callback, dataType, debug)
   local headers = {}
   if type(options.headers) == 'table' then
@@ -145,6 +166,12 @@ function framework.util.timed(func, startTime)
     return os.time() - startTime, func(...)
   end
 end
+
+
+function framework.util.currentTimestamp()
+  return os.time()
+end
+local currentTimestamp = framework.util.currentTimestamp
 
 function framework.util.megaBytesToBytes(mb)
   return mb * 1024 * 1024
@@ -257,16 +284,6 @@ exportable(framework.functional)
 exportable(framework.table)
 exportable(framework.http)
 
--- TODO: Commit this to luvit repository
-function Emitter:propagate(eventName, target)
-  if target and target.emit then
-    self:on(eventName, function (...) target:emit(eventName, ...) end)
-    return target
-  end
-
-  return self
-end
-
 --- DataSource class.
 -- @type DataSource
 local DataSource = Emitter:extend()
@@ -325,29 +342,73 @@ framework.NetDataSource = NetDataSource
 --- WebRequestDataSource Class
 -- @type WebRequestDataSource
 
-
-
-
-
-
 --- Plugin Class.
 -- @type Plugin
 local Plugin = Emitter:extend()
 framework.Plugin = Plugin
 
-function Plugin:_poll()
+--- Plugin constructor.
+-- A base plugin implementation that accept a dataSource and polls periodically for new data and format the output so the boundary meter can collect the metrics.
+-- @param params is a table of options that can be:
+--  pollInterval (optional) the poll interval between data fetchs. This is required if you pass a plain DataSource and not a DataSourcePoller.
+--  source (optional)
+--  version (options) the version of the plugin.    
+-- @param dataSource A DataSource that will be polled for data. 
+-- If is a DataSource a DataSourcePoller will be created internally to pool for data
+-- It can also be a DataSourcePoller or PollerCollection.
+-- @name Plugin:new
+function Plugin:initialize(params, dataSource)
 
-  self:emit('before_poll')
-  
-  self:onPoll()
+  assert(dataSource, 'Plugin:new dataSource is required.')
 
-  self:emit('after_poll')
-  timer.setTimeout(self.pollInterval, function () self:_poll() end)
+  local pollInterval = params.pollInterval or 1000
+  if not Plugin:_isPoller(dataSource) then
+    self.dataSource = DataSourcePoller:new(pollInterval, dataSource)
+  else 
+    self.dataSource = dataSource
+  end
+
+  self.source = params.source or os.hostname()
+  self.version = params.version or '1.0'
+  self.name = params.name or 'Boundary Plugin'
+
+  dataSource:propagate('error', self)
+
+  self:on('error', function (err) self:error(err) end)  
+
+  print("_bevent:" .. self.name .. " up : version " .. self.version ..  "|t:info|tags:lua,plugin")
+end
+
+function Plugin:_isPoller(poller)
+  return poller.run 
+end
+
+--- Called when the Plugin detect and error in one of his components.
+-- @param err the error emitted by one of the component that failed.
+function Plugin:error(err)
+  local msg = ''
+  if type(err) == 'table' then
+    msg = err.message
+  else
+    msg = tostring(err)
+  end
+  print(msg)
 end
 
 --- Run the plugin and start polling from the configured DataSource
 function Plugin:run()
-  self:_poll()  
+
+  self.dataSource:run(function (...) self:parseValues(...) end)
+end
+
+function Plugin:parseValues(...)
+  local metrics = self:onParseValues(...)
+
+  self:report(metrics)
+end
+
+function Plugin:onParseValues(...)
+  error('You must implement onParseValues')
 end
 
 function Plugin:report(metrics)
@@ -355,13 +416,11 @@ function Plugin:report(metrics)
   self:onReport(metrics)
 end
 
-function currentTimestamp()
-  return os.time()
-end
-
 function Plugin:onReport(metrics)
-  for metric, value in pairs(metrics) do
-    print(self:format(metric, value, self.source, currentTimestamp()))
+  for metric, v in pairs(metrics) do
+    local source = type(v) == 'table' and v.source or self.source
+    local value = type(v) == 'table' and v.value or v 
+    print(self:format(metric, value, source, currentTimestamp()))
   end
 end
 
@@ -378,41 +437,6 @@ end
 -- You can override this on your plugin instance.
 function Plugin:onFormat(metric, value, source, timestamp)
   return string.format('%s %f %s %s', metric, value, source, timestamp)
-end
-
---- Plugin constructor.
--- A base plugin implementation that accept a dataSource and polls periodically for new data and format the output so the boundary meter can collect the metrics.
--- @param params is a table of options that can be:
---  pollInterval (requried) the poll interval between data fetchs.
---  source (optional)
---  version (options) the version of the plugin.    
--- @param dataSource A DataSource that will be polled for data.
--- @name Plugin:new
-function Plugin:initialize(params, dataSource)
-  self.pollInterval = params.pollInterval or 1000
-  self.source = params.source or os.hostname()
-  self.dataSource = dataSource
-  self.version = params.version or '1.0'
-  self.name = params.name or 'Boundary Plugin'
-
-  self.dataSource:on('error', function (msg) self:error(msg) end)
-
-    print("_bevent:" .. self.name .. " up : version " .. self.version ..  "|t:info|tags:lua,plugin")
-end
-
-function Plugin:onPoll()
-  self.dataSource:fetch(self, function (...) self:parseValues(...) end )  
-end
-
-function Plugin:parseValues(...)
-  local metrics = self:onParseValues(...)
-
-  self:report(metrics)
-end
-
-function Plugin:onParseValues(...)
-  p('Plugin:onParseValues')
-  return {} 
 end
 
 local CommandPlugin = Plugin:extend()
@@ -465,17 +489,6 @@ function HttpPlugin:initialize(params)
     port = params.port,
     path = params.path
   }
-end
-
---- Called when the Plugin detect and error in one of his components.
-function Plugin:error(err)
-  local msg = ''
-  if type(err) == 'table' then
-    msg = err.message
-  else
-    msg = tostring(err)
-  end
-  print(msg)
 end
 
 local PollingPlugin = Plugin:extend()
@@ -590,6 +603,11 @@ end
 --- Start polling for data.
 -- @func callback A callback function to call when the DataSource returns some data. 
 function DataSourcePoller:run(callback)
+  if self.running then 
+    return
+  end
+
+  self.running = true
   self:_poll(callback)
 end
 
