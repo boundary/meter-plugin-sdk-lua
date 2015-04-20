@@ -50,7 +50,7 @@ framework.http = {}
 
 local ffi = require('ffi')
 
--- Added some mising function in the luvit > 2.0 release
+-- Added some missing function in the luvit > 2.0 release
 
 ffi.cdef [[
   int gethostname(char *name, unsigned int namelen);
@@ -105,7 +105,7 @@ local function pad(bytes)
 	return bytes
 end
 
-local function encode(str)
+local function encode(str, no_padding)
   local bytes = toBytes(str)
   local bytesTotal = #bytes
   if bytesTotal == 0 then
@@ -128,11 +128,13 @@ local function encode(str)
 	i = i + 3
   end
 	-- If was padded then replace with = characters 
+  local padding_char = no_padding and '' or '='
+
    if bytesTotal % 3 == 1  then
-   	   output[#output-1] = '='
-   	   output[#output] = '='
+   	   output[#output-1] = padding_char 
+   	   output[#output] = padding_char 
   elseif bytesTotal % 3 == 2 then
-	output[#output] = '='
+	output[#output] = padding_char 
    end
   
   return table.concat(output)
@@ -669,7 +671,7 @@ function WebRequestDataSource:fetch(context, callback)
     if self.wait_for_end then
 		  res:on('end', function ()
         local exec_time = os.time() - start_time  
-        callback(buffer, self.info, exec_time)
+        callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
 
         res:destroy()
       end)
@@ -682,7 +684,7 @@ function WebRequestDataSource:fetch(context, callback)
         end)
 
         if not self.wait_for_end then
-          callback(buffer, self.info, exec_time)
+          callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
         end
       end)
     end 
@@ -694,7 +696,7 @@ function WebRequestDataSource:fetch(context, callback)
   options.headers['User-Agent'] = 'Boundary Meter <support@boundary.com>'
 
   if options.auth then
-    headers['Authorization'] = 'Basic ' .. base64Encode(options.auth)
+    options.headers['Authorization'] = 'Basic ' .. base64Encode(options.auth, true)
   end
   
   local data = options.data
