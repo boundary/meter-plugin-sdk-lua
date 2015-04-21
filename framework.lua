@@ -177,6 +177,13 @@ function framework.util.timed(func, startTime)
   end
 end
 
+function framework.util.round(val, decimal)
+  if (decimal) then
+    return math.floor( (val * 10^decimal) + 0.5) / (10^decimal)
+  else
+    return math.floor(val+0.5)
+  end
+end
 
 function framework.util.currentTimestamp()
   return os.time()
