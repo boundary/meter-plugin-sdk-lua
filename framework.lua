@@ -245,6 +245,9 @@ function framework.string.escape(str)
 end
 
 function framework.string.split(self, pattern)
+  if self == nil then
+    return nil
+  end
   local outResults = {}
   local theStart = 1
   local theSplitStart, theSplitEnd = string.find(self, pattern, theStart)
@@ -259,7 +262,8 @@ end
 
 --- Trim blanks from the string
 function framework.string.trim(self)
-   return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
+   --return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
+   return string.match(self, '^%s*(.-)%s*$')
 end 
 
 --- Check if the string is empty. Before checking it will be trimmed to remove blank spaces.
@@ -269,6 +273,12 @@ end
 
 function framework.string.notEmpty(str)
   return not framework.string.isEmpty(str)
+end
+
+local notEmpty = framework.string.notEmpty
+
+function framework.util.auth(username, password)
+  return notEmpty(username) and notEmpty(password) and (username .. ':' .. password) or nil
 end
 
 -- You can call framework.string() to export all functions to the string table to the global table for easy access.
@@ -593,7 +603,9 @@ end
 -- @param value the item value
 -- @return diff the delta between the latests and actual value.
 function Accumulator:accumulate(key, value)
-    local oldValue = self.map[key]
+  assert(value ~= null, "Accumulator:accumulate#value must not be null.")
+
+  local oldValue = self.map[key]
   if oldValue == nil then
     oldValue = value  
   end
@@ -602,6 +614,12 @@ function Accumulator:accumulate(key, value)
   local diff = value - oldValue
 
   return diff
+end
+
+--- Return the last accumulated valor or 0 if there isnt any for the key
+-- @param key the key for the item to retrieve
+function Accumulator:get(key)
+  return self.map[key] or 0
 end
 
 --- Reset the specified value
@@ -678,16 +696,19 @@ function WebRequestDataSource:fetch(context, callback)
       res:once('data', function (data)
         local exec_time = os.time() - start_time
         buffer = buffer .. data
+
         res:on('data', function (data) 
 			    buffer = buffer .. data
         end)
 
         if not self.wait_for_end then
           callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
+          res:destroy()
         end
       end)
     end 
-		
+
+    res:propagate('data', self)
     res:propagate('error', self)
 	end
 
