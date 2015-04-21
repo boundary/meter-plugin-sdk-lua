@@ -348,6 +348,37 @@ end
 
 framework.NetDataSource = NetDataSource
 
+--- DataSourcePoller class
+-- @type DataSourcePoller
+local DataSourcePoller = Emitter:extend() 
+
+--- DataSourcePoller constructor.
+-- DataSourcePoller Polls a DataSource at the specified interval and calls a callback when there is some data available. 
+-- @int pollInterval number of milliseconds to poll for data 
+-- @param dataSource A DataSource to be polled
+-- @name DataSourcePoller:new 
+function DataSourcePoller:initialize(pollInterval, dataSource)
+  self.pollInterval = pollInterval
+  self.dataSource = dataSource
+  dataSource:propagate('error', self)
+end
+
+function DataSourcePoller:_poll(callback)
+  self.dataSource:fetch(self, callback)
+
+  timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
+end
+
+--- Start polling for data.
+-- @func callback A callback function to call when the DataSource returns some data. 
+function DataSourcePoller:run(callback)
+  if self.running then 
+    return
+  end
+
+  self.running = true
+  self:_poll(callback)
+end
 
 --- Plugin Class.
 -- @type Plugin
@@ -585,38 +616,6 @@ function Accumulator:resetAll()
 end
 
 framework.Accumulator = Accumulator
-
---- DataSourcePoller class
--- @type DataSourcePoller
-local DataSourcePoller = Emitter:extend() 
-
---- DataSourcePoller constructor.
--- DataSourcePoller Polls a DataSource at the specified interval and calls a callback when there is some data available. 
--- @int pollInterval number of milliseconds to poll for data 
--- @param dataSource A DataSource to be polled
--- @name DataSourcePoller:new 
-function DataSourcePoller:initialize(pollInterval, dataSource)
-  self.pollInterval = pollInterval
-  self.dataSource = dataSource
-  dataSource:propagate('error', self)
-end
-
-function DataSourcePoller:_poll(callback)
-  self.dataSource:fetch(self, callback)
-
-  timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
-end
-
---- Start polling for data.
--- @func callback A callback function to call when the DataSource returns some data. 
-function DataSourcePoller:run(callback)
-  if self.running then 
-    return
-  end
-
-  self.running = true
-  self:_poll(callback)
-end
 
 local PollerCollection = Emitter:extend()
 function PollerCollection:initialize(pollers) 
