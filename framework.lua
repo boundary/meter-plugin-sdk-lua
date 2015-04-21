@@ -10,11 +10,7 @@
 ---- @license MIT
 ---------------
 local fs = require('fs')
-local json = require('json')
 local Emitter = require('core').Emitter
-local Error = require('core').Error
-local Object = require('core').Object
-local Process = require('uv').Process
 local timer = require('timer')
 local math = require('math')
 local string = require('string')
@@ -178,6 +174,7 @@ function framework.util.timed(func, startTime)
 end
 
 function framework.util.round(val, decimal)
+  assert(val ~= nil, 'round expect a non-nil value')
   if (decimal) then
     return math.floor( (val * 10^decimal) + 0.5) / (10^decimal)
   else
@@ -223,7 +220,8 @@ function framework.table.keys(t)
   return result
 end
 
-function framework.table.clone(t)
+local clone 
+clone = function (t)
   if type(t) ~= 'table' then return t end
 
   local meta = getmetatable(t)
@@ -238,6 +236,7 @@ function framework.table.clone(t)
   setmetatable(target, meta)
   return target
 end
+framework.table.clone = clone
 
 function framework.string.contains(pattern, str)
   local s,e = string.find(str, pattern)
@@ -246,8 +245,8 @@ function framework.string.contains(pattern, str)
 end
 
 function framework.string.escape(str)
-  local s, c = string.gsub(str, '%.', '%%.')
-  s, c = string.gsub(s, '%-', '%%-')
+  local s, _ = string.gsub(str, '%.', '%%.')
+  s, _ = string.gsub(s, '%-', '%%-')
   return s
 end
 
@@ -289,7 +288,7 @@ function framework.util.auth(username, password)
 end
 
 -- You can call framework.string() to export all functions to the string table to the global table for easy access.
-function exportable(t)
+local function exportable(t)
   setmetatable(t, {
     __call = function (t, warn)
       for k,v in pairs(t) do 
@@ -337,7 +336,7 @@ function NetDataSource:initialize(host, port)
 end
 
 function NetDataSource:onFetch(socket)
-  p('you must override the NetDataSource:onFetch')
+  error('you must override the NetDataSource:onFetch')
 end
 
 --- Fetch data from the configured host and port
@@ -440,6 +439,7 @@ end
 
 --- Called when the Plugin detect and error in one of his components.
 -- @param err the error emitted by one of the component that failed.
+
 function Plugin:error(err)
   local msg = ''
   if type(err) == 'table' then
@@ -447,7 +447,7 @@ function Plugin:error(err)
   else
     msg = tostring(err)
   end
-  print(msg)
+  print('Error: ' .. msg)
 end
 
 --- Run the plugin and start polling from the configured DataSource
@@ -458,7 +458,10 @@ end
 
 function Plugin:parseValues(...)
   local metrics = self:onParseValues(...)
-
+  if metrics == nil then
+    return
+  end
+  
   self:report(metrics)
 end
 
@@ -610,7 +613,7 @@ end
 -- @param value the item value
 -- @return diff the delta between the latests and actual value.
 function Accumulator:accumulate(key, value)
-  assert(value ~= null, "Accumulator:accumulate#value must not be null.")
+  assert(value ~= nil, "Accumulator:accumulate#value must not be null.")
 
   local oldValue = self.map[key]
   if oldValue == nil then
@@ -704,8 +707,8 @@ function WebRequestDataSource:fetch(context, callback)
         local exec_time = os.time() - start_time
         buffer = buffer .. data
 
-        res:on('data', function (data) 
-			    buffer = buffer .. data
+        res:on('data', function (d) 
+			    buffer = buffer .. d 
         end)
 
         if not self.wait_for_end then
@@ -768,7 +771,7 @@ end
 -- @func callback A callback to call with the random generated number
 -- @usage local ds = RandomDataSource:new(1, 100) -- Generate numbers from 1 to 100
 --ds.fetch(nil, print)
-function RandomDataSource:fetch(context, callback)
+function RandomDataSource:fetch(_, callback)
   
   local value = math.random(self.minValue, self.maxValue)
   if not callback then error('fetch: you must set a callback when calling fetch') end
