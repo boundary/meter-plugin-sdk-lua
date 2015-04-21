@@ -25,18 +25,16 @@ local https = require('https')
 local net = require('net')
 local bit = require('bit')
 local table = require('table')
+local boundary = require('boundary')
 
-local json = require('json')
+local __pkg = "Boundary Plugin Frtamework"
+local __ver = "Version 1.0"
+local __tags = "lua,plugin,framework"
+
 local framework = {}
-local params = {}
+local params = boundary.param
 
--- import param.json data into a Lua table (boundary.param)
-local json_blob
-if (pcall(function () json_blob = fs.readFileSync("param.json") end)) then
-  pcall(function () params = json.parse(json_blob) end)
-else
-  print('param.json not found!')
-end
+framework.boundary = boundary
 
 framework.params = params
 
@@ -76,33 +74,33 @@ local encode_alphabet = {
 
 local decode_alphabet = {}
 for i, v in ipairs(encode_alphabet) do
-	decode_alphabet[v] = i-1
+  decode_alphabet[v] = i-1
 end
 
 local function translate(sixbit)
-	return encode_alphabet[sixbit + 1] 
+  return encode_alphabet[sixbit + 1] 
 end
 
 local function unTranslate(char)
-	return decode_alphabet[char]
+  return decode_alphabet[char]
 end
 
 local function toBytes(str)
-	return { str:byte(1, #str) }
+  return { str:byte(1, #str) }
 end
 
 local function mask6bits(byte)
-	return bit.band(0x3f, byte)
+  return bit.band(0x3f, byte)
 end
 
 local function pad(bytes)
-	local to_pad = 3 - #bytes % 3 
-	while to_pad > 0 and to_pad ~= 3 do
-		table.insert(bytes, 0x0)
-		to_pad = to_pad - 1
-	end
+  local to_pad = 3 - #bytes % 3 
+  while to_pad > 0 and to_pad ~= 3 do
+    table.insert(bytes, 0x0)
+    to_pad = to_pad - 1
+  end
 
-	return bytes
+  return bytes
 end
 
 local function encode(str, no_padding)
@@ -141,32 +139,40 @@ local function encode(str, no_padding)
 end
 
 local function decode(str)
-	-- take four encoded octets and produce 3 decoded bytes.
-	local output = {}
-	local i = 1
-	while i < #str do
-		local buffer = 0
-		-- get the octet represented by the coded base64 char
-		-- shift left by 6 bits and or 
-		-- mask the 3 bytes, and convert to ascii
+  -- take four encoded octets and produce 3 decoded bytes.
+  local output = {}
+  local i = 1
+  while i < #str do
+    local buffer = 0
+    -- get the octet represented by the coded base64 char
+    -- shift left by 6 bits and or 
+    -- mask the 3 bytes, and convert to ascii
 
-		for j = 18, 0, -6 do
-			local octet = unTranslate(str:sub(i, i))
-			buffer = bit.bor(bit.rol(octet, j), buffer)
-			i = i + 1
-		end
+    for j = 18, 0, -6 do
+      local octet = unTranslate(str:sub(i, i))
+      buffer = bit.bor(bit.rol(octet, j), buffer)
+      i = i + 1
+    end
 
-		for j = 16, 0, -8 do
-			local byte = bit.band(0xff, bit.ror(buffer, j))
-			table.insert(output, byte)
-		end
-	end
+    for j = 16, 0, -8 do
+      local byte = bit.band(0xff, bit.ror(buffer, j))
+      table.insert(output, byte)
+    end
+  end
 
-	return string.char(unpack(output))
+  return string.char(unpack(output))
 end
 
 framework.util.base64Encode = encode
 framework.util.base64Decode = decode
+
+function framework.util.error(errstring)
+  print("_bevent:"..__pkg..":"..__ver..":"..errstring.."|t:error|tags:"..__tags)
+end
+
+function framework.util.info(errstring)
+  print("_bevent:"..__pkg..":"..__ver..":"..errstring.."|t:error|tags:"..__tags)
+end
 
 --- Wraps a function to calculate the time passed between the wrap and the function execution.
 function framework.util.timed(func, startTime)
@@ -244,6 +250,48 @@ function framework.string.escape(str)
   return s
 end
 
+function framework.string.urldecode(str)
+  local char, gsub, tonumber = string.char, string.gsub, tonumber
+  local function _(hex) return char(tonumber(hex, 16)) end
+
+  str = gsub(str, '%%(%x%x)', _)
+
+  return str
+end
+
+function framework.string.urlencode(str)
+  if str then
+    str = string.gsub(str, '\n', '\r\n')
+    str = string.gsub(str, '([^%w])', function(c)
+      return string.format('%%%02X', string.byte(c))
+    end)
+  end
+
+  return str
+end
+
+function framework.string.jsonsplit(self)
+  local outResults = {}
+  local theStart,theSplitEnd = string.find(self, "{")
+  local numOpens = theStart and 1 or 0
+  theSplitEnd = theSplitEnd and theSplitEnd + 1
+  while theSplitEnd < string.len(self) do
+    if self[theSplitEnd] == '{' then
+      numOpens = numOpens + 1
+    elseif self[theSplitEnd] == '}' then
+      numOpens = numOpens - 1
+    end
+    if numOpens == 0 then
+      table.insert( outResults, string.sub ( self, theStart, theSplitEnd ) )
+      theStart,theSplitEnd = string.find(self, "{", theSplitEnd)
+      numOpens = theStart and 0 or 1
+      theSplitEnd = theSplitEnd or string.len(self)
+    end
+    theSplitEnd = theSplitEnd + 1
+  end
+  return outResults
+end
+
 function framework.string.split(self, pattern)
   local outResults = {}
   local theStart = 1
@@ -278,7 +326,7 @@ function exportable(t)
       for k,v in pairs(t) do 
         if (warn) then
           if _G[k] ~= nil then
-            print('Warning: Overriding function ' .. k ..' on global space.')
+            process.stderr:write('Warning: Overriding function ' .. k ..' on global space.')
           end
         end
         _G[k] = v
@@ -320,7 +368,7 @@ function NetDataSource:initialize(host, port)
 end
 
 function NetDataSource:onFetch(socket)
-  p('you must override the NetDataSource:onFetch')
+  framework.util.info('you must override the NetDataSource:onFetch')
 end
 
 --- Fetch data from the configured host and port
@@ -342,7 +390,7 @@ function NetDataSource:fetch(context, callback)
       socket:shutdown()
     end
 
-    end)
+  end)
   socket:on('error', function (err) self:emit('error', 'Socket error: ' .. err.message) end)
 end
 
@@ -360,7 +408,7 @@ local DataSourcePoller = Emitter:extend()
 function DataSourcePoller:initialize(pollInterval, dataSource)
   self.pollInterval = pollInterval
   self.dataSource = dataSource
-  dataSource:propagate('error', self)
+  --dataSource:propagate('error', self)
 end
 
 function DataSourcePoller:_poll(callback)
@@ -407,14 +455,18 @@ function Plugin:initialize(params, dataSource)
   end
 
   self.source = params.source or os.hostname()
-  self.version = params.version or '1.0'
-  self.name = params.name or 'Boundary Plugin'
+  self.version = params.version or __ver
+  self.name = params.name or __pkg
+  self.tags = params.tags or __tags
+  __pkg = self.name
+  __ver = self.version
+  __tags = self.tags
 
-  dataSource:propagate('error', self)
+  --dataSource:propagate('error', self)
 
-  self:on('error', function (err) self:error(err) end)  
+  self:on('error', function (err) self:error(err) end)
 
-  print("_bevent:" .. self.name .. " up : version " .. self.version ..  "|t:info|tags:lua,plugin")
+  framework.util.info("Up")
 end
 
 function Plugin:_isPoller(poller)
@@ -455,11 +507,9 @@ function Plugin:report(metrics)
 end
 
 function Plugin:onReport(metrics)
-  for metric, v in pairs(metrics) do
-    local source = type(v) == 'table' and v.source or self.source
-    local value = type(v) == 'table' and v.value or v 
-    print(self:format(metric, value, source, currentTimestamp()))
-  end
+  table.foreach(metrics, function(_index)
+    print(self:format(metrics[_index].metric, metrics[_index].value, metrics[_index].source or self.source, metrics[_index].timestamp or currentTimestamp()))
+  end)
 end
 
 function Plugin:format(metric, value, source, timestamp)
@@ -486,12 +536,12 @@ function CommandPlugin:initialize(params)
   if not params.command then
     error('params.command undefined. You need to define the command to excetue.')
   end
-  
+
   self.command = params.command
 end
 
 function CommandPlugin:execCommand(callback)
-  local proc = io.popen(self.command, 'r')  
+  local proc = io.popen(self.command, 'r')	
   local output = proc:read("*a")
   proc:close()
   if callback then
@@ -521,7 +571,7 @@ framework.HttpPlugin = HttpPlugin
 
 function HttpPlugin:initialize(params)
   Plugin.initialize(self, params)
-  
+	
   self.reqOptions = {
     host = params.host,
     port = params.port,
@@ -538,9 +588,9 @@ function HttpPlugin:makeRequest(reqOptions, successCallback)
 
 
     local data = ''
-    
+
     res:on('data', function (chunk)
-      data = data .. chunk  
+      data = data .. chunk	
       successCallback(data)
       -- TODO: Verify when data its complete or when we need to use de end
     end)
@@ -551,7 +601,7 @@ function HttpPlugin:makeRequest(reqOptions, successCallback)
     end)
 
   end)
-  
+	
   req:on('error', function (err)
     local msg = 'Error while sending a request: ' .. err.message
     self:error(msg)
@@ -580,7 +630,7 @@ end
 --- Acumulator Class
 -- @type Accumulator
 local Accumulator = Emitter:extend()
- 
+
 --- Accumulator constructor.
 -- Keep track of values so we can return the delta for accumulated metrics.
 -- @name Accumulator:new
@@ -593,9 +643,9 @@ end
 -- @param value the item value
 -- @return diff the delta between the latests and actual value.
 function Accumulator:accumulate(key, value)
-    local oldValue = self.map[key]
+  local oldValue = self.map[key]
   if oldValue == nil then
-    oldValue = value  
+    oldValue = value	
   end
 
   self.map[key] = value
@@ -643,14 +693,14 @@ end
 -- @type WebRequestDataSource
 local WebRequestDataSource = DataSource:extend()
 function WebRequestDataSource:initialize(params)
-	local options = params
-	if type(params) == 'string' then
-		options = url.parse(params)
-	end
+  local options = params
+  if type(params) == 'string' then
+    options = url.parse(params)
+  end
 
   self.wait_for_end = options.wait_for_end or false
 
-	self.options = options
+  self.options = options
   self.info = options.meta
 end
 
@@ -662,13 +712,13 @@ function WebRequestDataSource:fetch(context, callback)
   local start_time = os.time()
   local options = self.options
 
-	local headers = {} 
-	local buffer = ''
+  local headers = {} 
+  local buffer = ''
 
-	local success = function (res) 
+  local success = function (res) 
 
     if self.wait_for_end then
-		  res:on('end', function ()
+      res:on('end', function ()
         local exec_time = os.time() - start_time  
         callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
 
@@ -679,7 +729,7 @@ function WebRequestDataSource:fetch(context, callback)
         local exec_time = os.time() - start_time
         buffer = buffer .. data
         res:on('data', function (data) 
-			    buffer = buffer .. data
+          buffer = buffer .. data
         end)
 
         if not self.wait_for_end then
@@ -687,9 +737,9 @@ function WebRequestDataSource:fetch(context, callback)
         end
       end)
     end 
-		
+
     res:propagate('error', self)
-	end
+  end
 
   options.headers = {}
   options.headers['User-Agent'] = 'Boundary Meter <support@boundary.com>'
@@ -716,8 +766,8 @@ function WebRequestDataSource:fetch(context, callback)
   if body and #body > 0 then
     req:write(body)
   end
-  
-	req:propagate('error', self)
+
+  req:propagate('error', self)
   req:done()
 end
 
