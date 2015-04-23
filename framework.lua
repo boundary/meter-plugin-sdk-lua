@@ -37,7 +37,6 @@ end
 
 framework.params = params
 
-
 framework.string = {}
 framework.functional = {}
 framework.table = {}
@@ -790,6 +789,7 @@ function CommandOutputDataSource:initialize(params)
   self.path = params.path
   self.args = params.args
   self.success_exitcode = params.success_exitcode or 0
+  self.info = params.info
 end
 
 --- Returns the output of execution of the command
@@ -801,13 +801,13 @@ function CommandOutputDataSource:fetch(context, callback)
   proc.stderr:on('data', function (data) output = output .. data end)
   proc:on('exit', function (exitcode) 
     if tonumber(exitcode) ~= self.success_exitcode then
-      p(exitcode)
+      p(exitcode .. output)
       self:emit('error', {message = exitcode, extra = output})
       return
     end
 
     if callback ~= nil then
-      callback(output)
+      callback({info = self.info, output = output})
     end
 
   end)
