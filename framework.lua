@@ -15,13 +15,14 @@ local timer = require('timer')
 local math = require('math')
 local string = require('string')
 local os = require('os')
+local los = require('os')
 local io = require('io')
 local http = require('http')
 local https = require('https')
 local net = require('net')
 local bit = require('bit')
 local table = require('table')
-
+local childprocess = require('childprocess')
 local json = require('json')
 local framework = {}
 local params = {}
@@ -779,12 +780,43 @@ function RandomDataSource:fetch(_, callback)
   callback(value)
 end
 
+--- CommandOutputDataSource class
+-- @type CommandOutputDataSource
+local CommandOutputDataSource = DataSource:extend()
+
+--- CommandOutputDataSource constructor
+-- @paramas a table with path and args of the command to execute
+function CommandOutputDataSource:initialize(params)
+  self.path = params.path
+  self.args = params.args
+  self.success_exitcode = params.success_exitcode or 0
+end
+
+--- Returns the output of execution of the command
+function CommandOutputDataSource:fetch(context, callback)
+  local output = '' 
+  local proc = childprocess.spawn(self.path, self.args)
+  proc:propagate('error', self)
+  proc.stdout:on('data', function (data) output = output .. data end)
+  proc.stderr:on('data', function (data) output = output .. data end)
+  proc:on('exit', function (exitcode) 
+    if tonumber(exitcode) ~= self.success_exitcode then
+      p(exitcode)
+      self:emit('error', {message = exitcode, extra = output})
+      return
+    end
+
+    if callback ~= nil then
+      callback(output)
+    end
+
+  end)
+end
+
+framework.CommandOutputDataSource = CommandOutputDataSource
 framework.RandomDataSource = RandomDataSource
 framework.DataSourcePoller = DataSourcePoller
 framework.WebRequestDataSource = WebRequestDataSource
 framework.PollerCollection = PollerCollection
 
 return framework
-
-
-
