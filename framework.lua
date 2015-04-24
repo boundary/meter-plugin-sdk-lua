@@ -24,6 +24,7 @@ local bit = require('bit')
 local table = require('table')
 local childprocess = require('childprocess')
 local json = require('json')
+local url = require('url')
 local framework = {}
 local params = {}
 
@@ -197,6 +198,11 @@ function framework.functional.partial(func, x)
   end
 end
 
+function framework.functional.identity(x)
+  return x
+end
+local identity = framework.functional.identity
+
 function framework.functional.compose(f, g)
   return function(...) 
     return g(f(...))
@@ -321,9 +327,30 @@ function DataSource:initialize(func)
   self.func = func 
 end
 
+--- Chain the fetch result to the execution of the fetch on another DataSource.
+-- @param data_source the DataSource that will be fetched passing the transformed result of the fetch operation.
+-- @param transform (optional) transform function to be called on the result of the fetch operation in this instance.
+-- @usage: first_ds:chain(second_ds, transformFunc):chain(third_ds, transformFunc)
+function DataSource:chain(data_source, transform)
+  assert(data_source ~= nil, 'chain: data_source not set.')
+  self.chained = { data_source, transform }
+
+  return data_source
+end
+
 --- Fetch data from the datasource. This is an abstract method.
-function DataSource:fetch(context, callback, params)
-  callback(self.func(params))
+-- @param context Context information, this can be the caller o another object that you want to set.
+-- @param callback A function that will be called when the fetch operation is done. If there are another DataSource chained, this call will be made when the ultimate DataSource in the chain is done.
+function DataSource:fetch(context, callback, transform, params)
+  transform = transform or identity
+
+  local result = transform(self.func(params))
+  if self.chained then
+    local ds, tfunc = unpack(self.chained)
+    ds:fetch(self, callback, tfunc, result)
+  else
+    callback(result)
+  end
 end
 
 --- NetDataSource class.
