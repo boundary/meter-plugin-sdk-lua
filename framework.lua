@@ -313,17 +313,17 @@ exportable(framework.http)
 --- DataSource class.
 -- @type DataSource
 local DataSource = Emitter:extend()
---- DataSource is the base class for any DataSource you want to implement.
+--- DataSource is the base class for any DataSource you want to implement. By default accepts a function/closure that will be called each fetch call.
 framework.DataSource = DataSource
 --- DataSource constructor.
 -- @name DataSource:new
-function DataSource:initialize(params)
-  self.params = params
+function DataSource:initialize(func)
+  self.func = func 
 end
 
 --- Fetch data from the datasource. This is an abstract method.
-function DataSource:fetch(caller, callback)
-  error('fetch: you must implement on class or object instance.')
+function DataSource:fetch(context, callback, params)
+  callback(self.func(params))
 end
 
 --- NetDataSource class.
@@ -753,8 +753,11 @@ function WebRequestDataSource:fetch(context, callback)
 end
 
 
---- RandomDataSource class
+--- RandomDataSource class returns a random number each time it get called.
 -- @type RandomDataSource
+-- @param context the object that called the fetch
+-- @func callback A callback to call with the random generated number
+-- @usage local ds = RandomDataSource:new(1, 100) -- Generate numbers from 1 to 100
 local RandomDataSource = DataSource:extend()
 
 --- RandomDataSource constructor
@@ -762,21 +765,9 @@ local RandomDataSource = DataSource:extend()
 -- @int maxValue the upper bound for the random number generation.
 --@usage local ds = RandomDataSource:new(1, 100)
 function RandomDataSource:initialize(minValue, maxValue)
-  self.minValue = minValue
-  self.maxValue = maxValue
-end
-
---- Returns a random number
--- @param context the object that called the fetch
--- @func callback A callback to call with the random generated number
--- @usage local ds = RandomDataSource:new(1, 100) -- Generate numbers from 1 to 100
---ds.fetch(nil, print)
-function RandomDataSource:fetch(_, callback)
-  
-  local value = math.random(self.minValue, self.maxValue)
-  if not callback then error('fetch: you must set a callback when calling fetch') end
-
-  callback(value)
+  DataSource.initialize(self, function () 
+    return math.random(minValue, maxValue)
+  end)
 end
 
 --- CommandOutputDataSource class
