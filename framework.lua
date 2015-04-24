@@ -250,6 +250,14 @@ function framework.string.contains(pattern, str)
   return s ~= nil
 end
 
+function framework.string.replace(str, map)
+  for k, v in pairs(map) do
+    str = str:gsub('{' .. k .. '}', v)
+  end
+
+  return str
+end
+
 function framework.string.escape(str)
   local s, _ = string.gsub(str, '%.', '%%.')
   s, _ = string.gsub(s, '%-', '%%-')
@@ -282,10 +290,20 @@ end
 function framework.string.isEmpty(str)
   return (str == nil or framework.string.trim(str) == '')
 end
+local isEmpty = framework.string.isEmpty
 
 function framework.string.notEmpty(str)
   return not framework.string.isEmpty(str)
 end
+
+function framework.string.concat(s1, s2, char) 
+ if isEmpty(s2) then
+  return s1 
+ end
+
+  return s1 .. char .. s2
+end
+local concat = framework.string.concat
 
 local notEmpty = framework.string.notEmpty
 
@@ -341,13 +359,13 @@ end
 --- Fetch data from the datasource. This is an abstract method.
 -- @param context Context information, this can be the caller o another object that you want to set.
 -- @param callback A function that will be called when the fetch operation is done. If there are another DataSource chained, this call will be made when the ultimate DataSource in the chain is done.
-function DataSource:fetch(context, callback, transform, params)
-  transform = transform or identity
+function DataSource:fetch(context, callback, params)
 
-  local result = transform(self.func(params))
+  local result = self.func(params)
   if self.chained then
-    local ds, tfunc = unpack(self.chained)
-    ds:fetch(self, callback, tfunc, result)
+    local ds, transform = unpack(self.chained)
+    transform = transform or identity
+    ds:fetch(self, callback, transform(result))
   else
     callback(result)
   end
@@ -452,12 +470,13 @@ function Plugin:initialize(params, dataSource)
   self.source = params.source or os.hostname()
   self.version = params.version or '1.0'
   self.name = params.name or 'Boundary Plugin'
+  self.tags = params.tags or ''
 
   dataSource:propagate('error', self)
 
   self:on('error', function (err) self:error(err) end)  
 
-  print("_bevent:" .. self.name .. " up : version " .. self.version ..  "|t:info|tags:lua,plugin")
+  print("_bevent:" .. self.name .. " up : version " .. self.version ..  concat("|t:info|tags:lua,plugin", self.tags, ','))
 end
 
 function Plugin:_isPoller(poller)
@@ -711,11 +730,18 @@ end
 
 local base64Encode = framework.util.base64Encode
 
-function WebRequestDataSource:fetch(context, callback)
+
+local replace = framework.string.replace
+function WebRequestDataSource:fetch(context, callback, params)
   assert(callback, 'WebRequestDataSource:fetch: callback is required')
 
   local start_time = os.time()
-  local options = self.options
+  local options = clone(self.options)
+
+  -- Replace variables
+  params = params or {}
+  options.path = replace(options.path, params)
+  options.pathname = replace(options.pathname, params)
 
 	local headers = {} 
 	local buffer = ''
@@ -734,16 +760,17 @@ function WebRequestDataSource:fetch(context, callback)
         local exec_time = os.time() - start_time
         buffer = buffer .. data
 
-        res:on('data', function (d) 
-			    buffer = buffer .. d 
-        end)
-
+        
         if not self.wait_for_end then
           callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
           res:destroy()
         end
       end)
     end 
+
+    res:on('data', function (d) 
+		  buffer = buffer .. d 
+    end)
 
     res:propagate('data', self)
     res:propagate('error', self)
@@ -811,7 +838,7 @@ function CommandOutputDataSource:initialize(params)
 end
 
 --- Returns the output of execution of the command
-function CommandOutputDataSource:fetch(context, callback)
+function CommandOutputDataSource:fetch(context, callback, parser, params)
   local output = '' 
   local proc = childprocess.spawn(self.path, self.args)
   proc:propagate('error', self)
