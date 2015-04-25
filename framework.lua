@@ -174,6 +174,10 @@ function framework.util.timed(func, startTime)
   end
 end
 
+function framework.util.isHttpSuccess(status)
+  return status >= 200 and status < 300
+end
+
 function framework.util.round(val, decimal)
   assert(val, 'round expect a non-nil value')
   if (decimal) then
