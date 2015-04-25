@@ -175,7 +175,7 @@ function framework.util.timed(func, startTime)
 end
 
 function framework.util.round(val, decimal)
-  assert(val ~= nil, 'round expect a non-nil value')
+  assert(val, 'round expect a non-nil value')
   if (decimal) then
     return math.floor( (val * 10^decimal) + 0.5) / (10^decimal)
   else
@@ -265,7 +265,7 @@ function framework.string.escape(str)
 end
 
 function framework.string.split(self, pattern)
-  if self == nil then
+  if not self then
     return nil
   end
   local outResults = {}
@@ -350,7 +350,7 @@ end
 -- @param transform (optional) transform function to be called on the result of the fetch operation in this instance.
 -- @usage: first_ds:chain(second_ds, transformFunc):chain(third_ds, transformFunc)
 function DataSource:chain(data_source, transform)
-  assert(data_source ~= nil, 'chain: data_source not set.')
+  assert(data_source, 'chain: data_source not set.')
   self.chained = { data_source, transform }
 
   return data_source
@@ -504,7 +504,7 @@ end
 
 function Plugin:parseValues(...)
   local metrics = self:onParseValues(...)
-  if metrics == nil then
+  if not metrics then
     return
   end
   
@@ -659,7 +659,7 @@ end
 -- @param value the item value
 -- @return diff the delta between the latests and actual value.
 function Accumulator:accumulate(key, value)
-  assert(value ~= nil, "Accumulator:accumulate#value must not be null.")
+  assert(value, "Accumulator:accumulate#value must not be null.")
 
   local oldValue = self.map[key]
   if oldValue == nil then
@@ -743,7 +743,6 @@ function WebRequestDataSource:fetch(context, callback, params)
   options.path = replace(options.path, params)
   options.pathname = replace(options.pathname, params)
 
-	local headers = {} 
 	local buffer = ''
 
 	local success = function (res) 
@@ -785,7 +784,7 @@ function WebRequestDataSource:fetch(context, callback, params)
   
   local data = options.data
   local body
-  if data ~= nil and table.getn(data) > 0 then
+  if data and table.getn(data) > 0 then
     body = table.concat(data, '&') 
     options.headers['Content-Type'] = 'application/x-www-form-urlencoded'
     options.headers['Content-Length'] = #body 
@@ -851,7 +850,7 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
       return
     end
 
-    if callback ~= nil then
+    if callback then
       callback({info = self.info, output = output})
     end
 
