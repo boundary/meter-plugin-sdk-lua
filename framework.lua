@@ -614,7 +614,7 @@ function Plugin:onReport(metrics)
   for metric, v in pairs(metrics) do
     if type(v) ~= 'table' then
       print(self:format(metric, v, self.source, currentTimestamp()))
-    elseif type(v[1]) ~= 'table' then
+    elseif type(v[1]) ~= 'table' and v.value then
       -- looking for { metric = { value, source, timestamp }}
       local source = v.source or self.source
       local value = v.value 
@@ -961,10 +961,46 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
   end)
 end
 
+local MeterDataSource = NetDataSource:extend()
+function MeterDataSource:initialize(host, port)
+  local host = host or '127.0.0.1'
+  local port = port or 9192
+  NetDataSource.initialize(self, host, port)
+end
+
+function MeterDataSource:fetch(context, callback)
+  local parse = function (result) 
+
+    local parsed = json.parse(result)
+    local result = {}
+    if parsed.result.status ~= 'Ok' then
+      self:error('Error with status: ' .. parsed.result.status)
+      return
+    end
+
+    local query_metric = parsed.result.query_metric
+    for i = 1, table.getn(query_metric), 3 do
+      table.insert(result, {metric = query_metric[i], value = query_metric[i+1], timestamp = query_metric[i+2]})
+    end
+
+    callback(result)
+  end
+
+  NetDataSource.fetch(self, context, parse)
+end
+
+function MeterDataSource:queryMetricCommand(params)
+  local params = params or { match = ''}
+  return '{"jsonrpc":"2.0","method":"query_metric","id":1,"params":' .. json.stringify(params) .. '}\n'
+end
+
 framework.CommandOutputDataSource = CommandOutputDataSource
 framework.RandomDataSource = RandomDataSource
 framework.DataSourcePoller = DataSourcePoller
 framework.WebRequestDataSource = WebRequestDataSource
 framework.PollerCollection = PollerCollection
+framework.MeterDataSource = MeterDataSource
 
 return framework
+
+
