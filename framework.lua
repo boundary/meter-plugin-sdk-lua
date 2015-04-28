@@ -47,6 +47,7 @@ framework.http = {}
 
 -- Remove this when we migrate to luvit 2.0.x
 function framework.util.parseUrl(url, parseQueryString)
+  assert(url, 'parse expect a non-nil value')
   local href = url
   local chunk, protocol = url:match("^(([a-z0-9+]+)://)")
   url = url:sub((chunk and #chunk or 0) + 1)
@@ -248,6 +249,31 @@ end
 framework.util.base64Encode = encode
 framework.util.base64Decode = decode
 
+--- Trim blanks from the string
+function framework.string.trim(self)
+   --return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
+   return string.match(self, '^%s*(.-)%s*$')
+end 
+
+function framework.util.parseLinks(data)
+  local links = {}
+  local i = 1
+  for link in string.gmatch(data, '<a%s+h?ref=["\']([^"^\']+)["\'][^>]*>[^<]*</%s*a>') do
+    table.insert(links, link)
+  end
+
+  return links
+end
+
+function framework.util.isRelativeLink(link)
+  return not string.match(link, '^https?')
+end
+
+local trim = framework.string.trim
+function framework.util.absoluteLink(basePath, link)
+  return basePath .. trim(link)
+end
+
 --- Wraps a function to calculate the time passed between the wrap and the function execution.
 function framework.util.timed(func, startTime)
   local startTime = startTime or os.time()
@@ -367,12 +393,6 @@ function framework.string.split(self, pattern)
   return outResults
 end
 
---- Trim blanks from the string
-function framework.string.trim(self)
-   --return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
-   return string.match(self, '^%s*(.-)%s*$')
-end 
-
 --- Check if the string is empty. Before checking it will be trimmed to remove blank spaces.
 function framework.string.isEmpty(str)
   return (str == nil or framework.string.trim(str) == '')
@@ -443,18 +463,41 @@ function DataSource:chain(data_source, transform)
   return data_source
 end
 
+function DataSource:onFetch()
+  self:emit('onFetch')
+end
+
 --- Fetch data from the datasource. This is an abstract method.
 -- @param context Context information, this can be the caller o another object that you want to set.
 -- @param callback A function that will be called when the fetch operation is done. If there are another DataSource chained, this call will be made when the ultimate DataSource in the chain is done.
 function DataSource:fetch(context, callback, params)
 
+  self:onFetch(context, callback, params)
+
   local result = self.func(params)
+  self:processResult(context, callback, result)
+end
+
+function DataSource:processResult(context, callback, ...)
   if self.chained then
     local ds, transform = unpack(self.chained)
-    transform = transform or identity
-    ds:fetch(self, callback, transform(result))
+    if type(ds) == 'function' then
+      local f = ds
+      local data_sources = f(self, callback, ...)
+      if type(data_sources) == 'table' then
+        for i, v in ipairs(data_sources) do
+          v:fetch(self, callback, ...) -- TODO: This datasources where created by the function chained. Pass parameters on the constructor?
+        end
+      else
+        --TODO: Use the result of f() or just result? because f can be also a transform function and if you are asigning to a chain the result of this will be the continuated value.
+        callback(...) 
+      end
+    else
+      transform = transform or identity 
+      ds:fetch(self, callback, transform(...))
+    end
   else
-    callback(result)
+    callback(...)
   end
 end
 
@@ -550,6 +593,7 @@ function Plugin:initialize(params, dataSource)
   local pollInterval = params.pollInterval or 1000
   if not Plugin:_isPoller(dataSource) then
     self.dataSource = DataSourcePoller:new(pollInterval, dataSource)
+    self.dataSource:propagate('error', self)
   else 
     self.dataSource = dataSource
   end
@@ -844,17 +888,20 @@ function WebRequestDataSource:fetch(context, callback, params)
 
   -- Replace variables
   params = params or {}
-  options.path = replace(options.path, params)
-  options.pathname = replace(options.pathname, params)
+  if type(params) == 'table' then
+    options.path = replace(options.path, params)
+    options.pathname = replace(options.pathname, params)
+  end
 
-	local buffer = ''
+  local buffer = ''
 
 	local success = function (res) 
 
     if self.wait_for_end then
 		  res:on('end', function ()
         local exec_time = os.time() - start_time  
-        callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
+        --callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
+        self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
 
         res:destroy()
       end)
@@ -862,10 +909,9 @@ function WebRequestDataSource:fetch(context, callback, params)
       res:once('data', function (data)
         local exec_time = os.time() - start_time
         buffer = buffer .. data
-
         
         if not self.wait_for_end then
-          callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
+          self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
           res:destroy()
         end
       end)
