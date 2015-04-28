@@ -44,6 +44,16 @@ framework.table = {}
 framework.util = {}
 framework.http = {}
 
+-- Propagate the event to another emitter.                                                 
+-- TODO: Will be removed when migrating to luvit 2.0.x
+function Emitter:propagate(eventName, target)                                              
+  if (target and target.emit) then                                                         
+    self:on(eventName, function (...) target:emit(eventName, ...) end)                     
+    return target                                                                          
+  end                                                                                      
+                                                                                           
+  return self                                                                              
+end     
 
 local ffi = require('ffi')
 
@@ -525,10 +535,27 @@ function Plugin:report(metrics)
 end
 
 function Plugin:onReport(metrics)
+  -- metrics can be { metric = value }
+  -- or {metric = {value, source}}
+  -- or {metric = {{value, source}, {value, source}, {value, source}}
   for metric, v in pairs(metrics) do
-    local source = type(v) == 'table' and v.source or self.source
-    local value = type(v) == 'table' and v.value or v 
-    print(self:format(metric, value, source, currentTimestamp()))
+    if type(v) ~= 'table' then
+      print(self:format(metric, v, self.source, currentTimestamp()))
+    elseif type(v[1]) ~= 'table' then
+      -- looking for { metric = { value, source, timestamp }}
+      local source = v.source or self.source
+      local value = v.value 
+      local timestamp = v.timestamp or currentTimestamp()
+      print(self:format(metric, value, source, timestamp))
+    else
+      -- looking for { metric = {{ value, source, timestamp }}}
+      for _, j in pairs(v) do
+        local source = j.source or self.source
+        local value = j.value 
+        local timestamp = j.timestamp or currentTimestamp()
+        print(self:format(metric, value, source, timestamp))
+      end
+    end 
   end
 end
 
@@ -868,3 +895,4 @@ framework.WebRequestDataSource = WebRequestDataSource
 framework.PollerCollection = PollerCollection
 
 return framework
+                                                                                   
