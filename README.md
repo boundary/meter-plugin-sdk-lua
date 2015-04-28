@@ -15,7 +15,7 @@ A starting point to make a library that can easy the development of Boundary Plu
 #### init.lua
 
 ```lua
-local framework = require('./modules/framework')
+local framework = require('framework')
 local Plugin = framework.Plugin
 local RandomDataSource = framework.RandomDataSource
 
@@ -48,7 +48,7 @@ plugin:run()
 In this example we will see how to extract the page total bytes for a dynamic web request using two chained DataSources. We first simulate a request with a DataSource that returns a tag and then pass this to a WebRequestDataSource to generate a new request. Finally we count the bytes returned by the RequestDataSource to generate the metric.
 
 ```lua
-local framework = require('./framework')
+local framework = require('framework')
 local Plugin = framework.Plugin
 local WebRequestDataSource = framework.WebRequestDataSource
 local DataSource = framework.DataSource

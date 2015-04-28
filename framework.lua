@@ -27,6 +27,7 @@ local json = require('json')
 local url = require('url')
 local framework = {}
 local params = {}
+local querystring = require('querystring')
 
 -- import param.json data into a Lua table (boundary.param)
 local json_blob
@@ -43,6 +44,78 @@ framework.functional = {}
 framework.table = {}
 framework.util = {}
 framework.http = {}
+
+-- Remove this when we migrate to luvit 2.0.x
+function framework.util.parseUrl(url, parseQueryString)
+  local href = url
+  local chunk, protocol = url:match("^(([a-z0-9+]+)://)")
+  url = url:sub((chunk and #chunk or 0) + 1)
+  
+  local auth
+  chunk, auth = url:match('(([0-9a-zA-Z]+:?[0-9a-zA-Z]+)@)') 
+  url = url:sub((chunk and #chunk or 0) + 1)
+         
+  local host
+  local hostname
+  local port
+  if protocol then
+    host = url:match("^([%a%.%d-]+:?%d*)")
+    if host then
+      hostname = host:match("^([^:/]+)")
+      port = host:match(":(%d+)$")
+    end
+  url = url:sub((host and #host or 0) + 1)
+  end
+
+  host = hostname -- Just to be compatible with our code base. Discuss this.
+
+  local path
+  local pathname
+  local search
+  local query
+  local hash  
+  hash = url:match("(#.*)$") 
+  url = url:sub(1, (#url - (hash and #hash or 0)))
+
+  if url ~= '' then
+    path = url
+    local temp
+    temp = url:match("^[^?]*")
+    if temp ~= '' then
+      pathname = temp
+    end
+    temp = url:sub((pathname and #pathname or 0) + 1)
+    if temp ~= '' then
+      search = temp
+    end
+    if search then
+    temp = search:sub(2)
+      if temp ~= '' then
+        query = temp
+      end
+    end
+  end
+
+  if parseQueryString then
+    query = querystring.parse(query)
+  end
+
+  return {
+    href = href,
+    protocol = protocol,
+    host = host,
+    hostname = hostname,
+    port = port,
+    path = path or '/',
+    pathname = pathname or '/',
+    search = search,
+    query = query,
+    auth = auth,
+    hash = hash
+  }
+end
+
+url.parse = framework.util.parseUrl
 
 -- Propagate the event to another emitter.                                                 
 -- TODO: Will be removed when migrating to luvit 2.0.x
@@ -895,4 +968,3 @@ framework.WebRequestDataSource = WebRequestDataSource
 framework.PollerCollection = PollerCollection
 
 return framework
-                                                                                   
