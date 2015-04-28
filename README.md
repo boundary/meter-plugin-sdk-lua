@@ -138,7 +138,7 @@ CPU_CORE 0.570000 CPU_2 1430181480
 
 ### Example 4 - Creating DataSources dynamically
 
-In this example we will get the page response time for each link on the site http://lua-urers.org/wiki. We create a WebRequestDataSource to get the initial page, parse the links and create a WebRequestDataSource for each link extract. When each of the request are done, we get the page response time and send to the Plugin to generate the metric.
+In this example we will get the page response time for each link on the site http://lua-urers.org/wiki. We create a WebRequestDataSource to get the initial page, parse the links and create a WebRequestDataSource for each link extracted. For each new request we will get the page response time and send it the Plugin to report the metric.
 
 
 ```
