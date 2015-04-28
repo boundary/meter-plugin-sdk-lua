@@ -142,7 +142,7 @@ In this example we will get the page response time for each link on the site htt
 
 
 ```
-local framework = require('./framework')
+local framework = require('framework')
 local url = require('url')
 local Plugin = framework.Plugin
 local WebRequestDataSource = framework.WebRequestDataSource
@@ -165,7 +165,9 @@ ds:chain(function (context, callback, data)
       v = absoluteLink('http://lua-users.org', v)
       local options = url.parse(v)
       options.meta = v
-      table.insert(data_sources, WebRequestDataSource:new(options))
+      local child_ds = WebRequestDataSource:new(options))
+      child_ds:propagate('error', context) -- just propagate any error up-to the chain
+      table.insert(data_sources, child_ds) 
     end
   end
   return data_sources
@@ -201,7 +203,3 @@ PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/RecentChanges 1430248084
 PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/cgi-bin/wiki.pl?action=editprefs 1430248084
 PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/cgi-bin/wiki.pl?action=edit&amp;id=HomePage 1430248084k
 ```
-
-
-
-
