@@ -15,7 +15,6 @@ local timer = require('timer')
 local math = require('math')
 local string = require('string')
 local os = require('os')
-local los = require('os')
 local io = require('io')
 local http = require('http')
 local https = require('https')
@@ -24,20 +23,22 @@ local bit = require('bit')
 local table = require('table')
 local childprocess = require('childprocess')
 local json = require('json')
-local url = require('url')
+local _url = require('url')
 local framework = {}
-local params = {}
 local querystring = require('querystring')
 
 -- import param.json data into a Lua table (boundary.param)
-local json_blob
-if (pcall(function () json_blob = fs.readFileSync("param.json") end)) then
-  pcall(function () params = json.parse(json_blob) end)
-else
-  print('param.json not found!')
+local function parseParamFile()
+  local json_blob
+  local params = {}
+  if (pcall(function () json_blob = fs.readFileSync("param.json") end)) then
+    pcall(function () params = json.parse(json_blob) end)
+  else
+    print('param.json not found!')
+  end
+  return params
 end
-
-framework.params = params
+framework.params = parseParamFile() 
 
 framework.string = {}
 framework.functional = {}
@@ -116,7 +117,7 @@ function framework.util.parseUrl(url, parseQueryString)
   }
 end
 
-url.parse = framework.util.parseUrl
+_url.parse = framework.util.parseUrl
 
 -- Propagate the event to another emitter.                                                 
 -- TODO: Will be removed when migrating to luvit 2.0.x
@@ -257,7 +258,6 @@ end
 
 function framework.util.parseLinks(data)
   local links = {}
-  local i = 1
   for link in string.gmatch(data, '<a%s+h?ref=["\']([^"^\']+)["\'][^>]*>[^<]*</%s*a>') do
     table.insert(links, link)
   end
@@ -276,7 +276,7 @@ end
 
 --- Wraps a function to calculate the time passed between the wrap and the function execution.
 function framework.util.timed(func, startTime)
-  local startTime = startTime or os.time()
+  startTime = startTime or os.time()
 
   return function(...) 
     return os.time() - startTime, func(...)
@@ -358,7 +358,7 @@ end
 framework.table.clone = clone
 
 function framework.string.contains(pattern, str)
-  local s,e = string.find(str, pattern)
+  local s,_ = string.find(str, pattern)
 
   return s ~= nil
 end
@@ -421,8 +421,8 @@ end
 -- You can call framework.string() to export all functions to the string table to the global table for easy access.
 local function exportable(t)
   setmetatable(t, {
-    __call = function (t, warn)
-      for k,v in pairs(t) do 
+    __call = function (u, warn)
+      for k,v in pairs(u) do 
         if (warn) then
           if _G[k] ~= nil then
             print('Warning: Overriding function ' .. k ..' on global space.')
@@ -628,7 +628,7 @@ end
 -- @param err the error emitted by one of the component that failed.
 
 function Plugin:error(err)
-  local msg = ''
+  local msg
   if type(err) == 'table' and err.message then
     msg = err.message
   else
@@ -878,7 +878,7 @@ local WebRequestDataSource = DataSource:extend()
 function WebRequestDataSource:initialize(params)
 	local options = params
 	if type(params) == 'string' then
-		options = url.parse(params)
+		options = _url.parse(params)
 	end
 
   self.wait_for_end = options.wait_for_end or false
@@ -1006,7 +1006,6 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
   proc.stderr:on('data', function (data) output = output .. data end)
   proc:on('exit', function (exitcode) 
     if tonumber(exitcode) ~= self.success_exitcode then
-      p(exitcode .. output)
       self:emit('error', {message = exitcode, extra = output})
       return
     end
@@ -1020,15 +1019,15 @@ end
 
 local MeterDataSource = NetDataSource:extend()
 function MeterDataSource:initialize(host, port)
-  local host = host or '127.0.0.1'
-  local port = port or 9192
+  host = host or '127.0.0.1'
+  port = port or 9192
   NetDataSource.initialize(self, host, port)
 end
 
 function MeterDataSource:fetch(context, callback)
-  local parse = function (result) 
+  local parse = function (value) 
 
-    local parsed = json.parse(result)
+    local parsed = json.parse(value)
     local result = {}
     if parsed.result.status ~= 'Ok' then
       self:error('Error with status: ' .. parsed.result.status)
@@ -1047,7 +1046,7 @@ function MeterDataSource:fetch(context, callback)
 end
 
 function MeterDataSource:queryMetricCommand(params)
-  local params = params or { match = ''}
+  params = params or { match = ''}
   return '{"jsonrpc":"2.0","method":"query_metric","id":1,"params":' .. json.stringify(params) .. '}\n'
 end
 

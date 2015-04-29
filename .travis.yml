@@ -1,6 +1,6 @@
 language: c 
 install:
-  - "sudo apt-get install luarocks"
+  - "sudo apt-get install -y luarocks"
   - "sudo luarocks install luacheck"
 script:
-  - "luacheck framework.lua"
+  - "luacheck --no-unused-args framework.lua"
