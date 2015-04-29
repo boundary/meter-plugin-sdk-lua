@@ -991,6 +991,7 @@ local CommandOutputDataSource = DataSource:extend()
 --- CommandOutputDataSource constructor
 -- @paramas a table with path and args of the command to execute
 function CommandOutputDataSource:initialize(params)
+  assert(params, 'CommandOuptutDataSource:new exect a non-nil params parameter')
   self.path = params.path
   self.args = params.args
   self.success_exitcode = params.success_exitcode or 0
@@ -1006,7 +1007,7 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
   proc.stderr:on('data', function (data) output = output .. data end)
   proc:on('exit', function (exitcode) 
     if tonumber(exitcode) ~= self.success_exitcode then
-      self:emit('error', {message = exitcode, extra = output})
+      self:emit('error', {message = 'Program terminated with exitcode \'' .. exitcode .. '\' and message \'' .. output .. '\''})
       return
     end
 
