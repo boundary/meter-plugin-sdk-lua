@@ -1,4 +1,6 @@
 # boundary-plugin-framework-lua
+[![Build Status](https://travis-ci.org/GabrielNicolasAvellaneda/boundary-plugin-framework-lua.svg?branch=master)](https://travis-ci.org/GabrielNicolasAvellaneda/boundary-plugin-framework-lua)
+
 A starting point to make a library that can easy the development of Boundary Plugin using LUA/Luvit
 
 ### Example 1 - Generating random metric values
