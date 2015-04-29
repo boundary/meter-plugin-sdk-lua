@@ -606,8 +606,18 @@ function Plugin:initialize(params, dataSource)
   dataSource:propagate('error', self)
 
   self:on('error', function (err) self:error(err) end)  
+end
 
-  print("_bevent:" .. self.name .. " up : version " .. self.version ..  concat("|t:info|tags:lua,plugin", self.tags, ','))
+function Plugin:printError(err)
+  self:printEvent('error', err)
+end
+
+function Plugin:printInfo(msg)
+  self:printEvent('info', msg)
+end
+
+function Plugin:printEvent(event, msg)
+  print("_bevent:" .. self.name .. " ".. msg .. ": version " .. self.version ..  concat("|t:" .. event ..  "|tags:lua,plugin", self.tags, ','))
 end
 
 function Plugin:_isPoller(poller)
@@ -619,17 +629,18 @@ end
 
 function Plugin:error(err)
   local msg = ''
-  if type(err) == 'table' then
+  if type(err) == 'table' and err.message then
     msg = err.message
   else
     msg = tostring(err)
   end
-  print('Error: ' .. msg)
+  self:printError(msg)
 end
 
 --- Run the plugin and start polling from the configured DataSource
 function Plugin:run()
 
+  self:printInfo('up')
   self.dataSource:run(function (...) self:parseValues(...) end)
 end
 

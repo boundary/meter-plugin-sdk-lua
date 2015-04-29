@@ -141,7 +141,7 @@ CPU_CORE 0.570000 CPU_2 1430181480
 In this example we will get the page response time for each link on the site http://lua-urers.org/wiki. We create a WebRequestDataSource to get the initial page, parse the links and create a WebRequestDataSource for each link extracted. For each new request we will get the page response time and send it the Plugin to report the metric.
 
 
-```
+```lua
 local framework = require('framework')
 local url = require('url')
 local Plugin = framework.Plugin
@@ -161,7 +161,7 @@ ds:chain(function (context, callback, data)
   local links = parseLinks(data)
   local data_sources = {}
   for i, v in ipairs(links) do
-    if isRelativeLink then
+    if isRelativeLink(v) then
       v = absoluteLink('http://lua-users.org', v)
       local options = url.parse(v)
       options.meta = v
@@ -200,6 +200,4 @@ PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/CastOfCharacters 143024808
 PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/WikiHelp 1430248084
 PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/GuestBook 1430248084
 PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/RecentChanges 1430248084
-PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/cgi-bin/wiki.pl?action=editprefs 1430248084
-PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/cgi-bin/wiki.pl?action=edit&amp;id=HomePage 1430248084k
 ```
