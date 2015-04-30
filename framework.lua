@@ -11,6 +11,7 @@
 ---------------
 local fs = require('fs')
 local Emitter = require('core').Emitter
+local Object = require('core').Object
 local timer = require('timer')
 local math = require('math')
 local string = require('string')
@@ -440,6 +441,26 @@ exportable(framework.util)
 exportable(framework.functional)
 exportable(framework.table)
 exportable(framework.http)
+
+--- Cache class.
+-- @type Cache
+local Cache = Object:extend()
+function Cache:initialize(func)
+  self.func = func
+  self.cache = {}
+end
+
+function Cache:get(key) 
+  assert(key, 'Cache:get key must be non-nil')
+  local result = self.cache[key]
+  if not result then
+    result = self.func()
+    self.cache[key] = result -- now cache the value
+  end
+  return result
+end
+
+framework.Cache = Cache
 
 --- DataSource class.
 -- @type DataSource
