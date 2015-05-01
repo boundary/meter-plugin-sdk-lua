@@ -253,9 +253,13 @@ framework.util.base64Decode = decode
 
 --- Trim blanks from the string
 function framework.string.trim(self)
-   --return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
    return string.match(self, '^%s*(.-)%s*$')
 end 
+
+function framework.string.charAt(self, i)
+  return string.sub(self, i, i)
+end
+local charAt = framework.string.charAt
 
 function framework.util.parseLinks(data)
   local links = {}
@@ -378,6 +382,7 @@ function framework.string.escape(str)
   return s
 end
 
+-- TODO: Convert split to a generator
 function framework.string.split(self, pattern)
   if not self then
     return nil
@@ -392,6 +397,38 @@ function framework.string.split(self, pattern)
   end
   table.insert( outResults, string.sub( self, theStart ) )
   return outResults
+end
+local split = framework.string.split
+
+function framework.table.create(keys, values)
+  local result = {}
+  for i, k in ipairs(keys) do
+    result[k] = values[i]
+  end
+  return result
+end
+
+-- TODO: Convert this to a generator
+function framework.string.parseCSV(data, separator, comment, header)
+  separator = separator or ','
+  local parsed = {}
+  local lines = split(data, '\n')
+  local headers
+  if header then
+    local header_line = string.match(lines[1], comment .. '%s*([' .. separator .. '%a]+)%s*')
+    headers = split(trim(header_line), separator)
+  end
+  for _, v in ipairs(lines) do
+    if not comment or not (charAt(v, 1) == comment) then
+      local values = split(v, separator)
+      if headers then
+        table.insert(parsed, framework.table.create(headers, values)) 
+      else
+        table.insert(parsed, values) 
+      end
+    end
+  end
+  return parsed
 end
 
 --- Check if the string is empty. Before checking it will be trimmed to remove blank spaces.
@@ -961,7 +998,7 @@ function WebRequestDataSource:fetch(context, callback, params)
   options.headers['User-Agent'] = 'Boundary Meter <support@boundary.com>'
 
   if options.auth then
-    options.headers['Authorization'] = 'Basic ' .. base64Encode(options.auth, true)
+    options.headers['Authorization'] = 'Basic ' .. base64Encode(options.auth, false)
   end
   
   local data = options.data
