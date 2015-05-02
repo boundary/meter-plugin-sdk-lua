@@ -335,6 +335,18 @@ function framework.table.get(key, map)
   return map[key]
 end
 
+function framework.table.indexOf(self, value)
+  if type(self) ~= 'table' then
+    return nil
+  end
+  for i,v in ipairs(self) do
+    if value == v then
+      return i
+    end
+  end
+  return nil 
+end
+
 function framework.table.keys(t)
   local result = {}
   for k,_ in pairs(t) do
@@ -429,6 +441,10 @@ function framework.string.parseCSV(data, separator, comment, header)
     end
   end
   return parsed
+end
+
+function framework.util.parseValue(x) 
+  return tonumber(x) or tostring(x) or 0
 end
 
 --- Check if the string is empty. Before checking it will be trimmed to remove blank spaces.
