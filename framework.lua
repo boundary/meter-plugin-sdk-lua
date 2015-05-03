@@ -412,39 +412,8 @@ function framework.string.split(self, pattern)
 end
 local split = framework.string.split
 
-function framework.table.create(keys, values)
-  local result = {}
-  for i, k in ipairs(keys) do
-    result[k] = values[i]
-  end
-  return result
-end
-
--- TODO: Convert this to a generator
-function framework.string.parseCSV(data, separator, comment, header)
-  separator = separator or ','
-  local parsed = {}
-  local lines = split(data, '\n')
-  local headers
-  if header then
-    local header_line = string.match(lines[1], comment .. '%s*([' .. separator .. '%a]+)%s*')
-    headers = split(trim(header_line), separator)
-  end
-  for _, v in ipairs(lines) do
-    if not comment or not (charAt(v, 1) == comment) then
-      local values = split(v, separator)
-      if headers then
-        table.insert(parsed, framework.table.create(headers, values)) 
-      else
-        table.insert(parsed, values) 
-      end
-    end
-  end
-  return parsed
-end
-
-function framework.util.parseValue(x) 
-  return tonumber(x) or tostring(x) or 0
+function framework.util.pack(value, timestamp, source)
+  return { value = value, timestamp = timestamp, source = source }
 end
 
 --- Check if the string is empty. Before checking it will be trimmed to remove blank spaces.
@@ -467,6 +436,54 @@ end
 local concat = framework.string.concat
 
 local notEmpty = framework.string.notEmpty
+
+function framework.table.create(keys, values)
+  local result = {}
+  for i, k in ipairs(keys) do
+    if notEmpty(trim(k)) then
+      result[k] = values[i]
+    end
+  end
+  return result
+end
+
+function framework.util.parseValue(x) 
+  return tonumber(x) or (isEmpty(x) and 0) or tostring(x) or 0
+end
+local parseValue = framework.util.parseValue
+
+function framework.functional.map(self, func)
+  local result = {}
+  table.foreach(self, function (i, v) table.insert(result, func(v)) end)
+  return result
+end
+local map = framework.functional.map
+
+-- TODO: Convert this to a generator
+function framework.string.parseCSV(data, separator, comment, header)
+  separator = separator or ','
+  local parsed = {}
+  local lines = split(data, '\n')
+  local headers
+  if header then
+    local header_line = string.match(lines[1], comment .. '%s*([' .. separator .. '%S]+)%s*')
+    headers = split(trim(header_line), separator)
+  end
+  for _, v in ipairs(lines) do
+    if notEmpty(v) then
+      if not comment or not (charAt(v, 1) == comment) then
+        local values = split(v, separator)
+        values = map(values, parseValue)
+        if headers then
+          table.insert(parsed, framework.table.create(headers, values)) 
+        else
+          table.insert(parsed, values) 
+        end
+      end
+    end
+  end
+  return parsed
+end
 
 function framework.util.auth(username, password)
   return notEmpty(username) and notEmpty(password) and (username .. ':' .. password) or nil
@@ -892,7 +909,7 @@ end
 -- @param value the item value
 -- @return diff the delta between the latests and actual value.
 function Accumulator:accumulate(key, value)
-  assert(value, "Accumulator:accumulate#value must not be null.")
+  assert(value, "Accumulator:accumulate#value must not be null for key " .. key)
 
   local oldValue = self.map[key]
   if oldValue == nil then
