@@ -1,4 +1,4 @@
-nguage: c 
+language: c 
 install:
   - "sudo apt-get install -y luarocks"
   - "sudo luarocks install luacheck"
