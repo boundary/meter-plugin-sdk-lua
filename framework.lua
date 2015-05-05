@@ -402,25 +402,49 @@ function framework.string.jsonsplit(self)
   return outResults
 end
 
--- TODO: Convert split to a generator
-function framework.string.split(self, pattern)
-  if not self then
+function framework.string.gsplit(data, separator)
+  local pos = 1
+  local iter = function()
+    if not pos then -- stop the generator (maybe using stateless is a better option?)
+      return nil
+    end
+    local s, e = string.find(data, separator, pos) 
+    if s then
+      local part = string.sub(data, pos, s-1) 
+      pos = e + 1
+      return part
+    else
+      local part = string.sub(data, pos)
+      pos = nil  
+      return part
+    end
+  end
+  return iter, data, 1
+end
+local gsplit = framework.string.gsplit
+
+function framework.string.isplit(data, separator, func)
+  for part in gsplit(data, separator) do
+    func(part)
+  end
+end
+local isplit = framework.string.isplit
+
+function framework.string.split(data, separator)
+  if not data then
     return nil
   end
-  local outResults = {}
-  local theStart = 1
-  local theSplitStart, theSplitEnd = string.find(self, pattern, theStart)
-  while theSplitStart do
-    table.insert( outResults, string.sub( self, theStart, theSplitStart-1 ) )
-    theStart = theSplitEnd + 1
-    theSplitStart, theSplitEnd = string.find( self, pattern, theStart )
-  end
-  table.insert( outResults, string.sub( self, theStart ) )
-  return outResults
+  local result = {}
+  isplit(data, separator, function (part) table.insert(result, part) end) 
+  return result
 end
 local split = framework.string.split
 
-function framework.util.pack(value, timestamp, source)
+function framework.util.pack(metric, value, timestamp, source)
+  return { metric = metric, value = value, timestamp = timestamp, source = source }
+end
+
+function framework.util.packValue(value, timestamp, source)
   return { value = value, timestamp = timestamp, source = source }
 end
 
@@ -760,8 +784,13 @@ function Plugin:onReport(metrics)
   -- metrics can be { metric = value }
   -- or {metric = {value, source}}
   -- or {metric = {{value, source}, {value, source}, {value, source}}
+  -- or {metric, value, source}
+  -- or {{metric, value, source, timestamp}}
   for metric, v in pairs(metrics) do
-    if type(v) ~= 'table' then
+    -- { { metric, value .. }, { metric, value .. } }
+    if type(metric) == 'number' then
+      print(self:format(v.metric, v.value, v.source, v.timestamp or currentTimestamp()))
+    elseif type(v) ~= 'table' then
       print(self:format(metric, v, self.source, currentTimestamp()))
     elseif type(v[1]) ~= 'table' and v.value then
       -- looking for { metric = { value, source, timestamp }}
@@ -1139,3 +1168,4 @@ framework.PollerCollection = PollerCollection
 framework.MeterDataSource = MeterDataSource
 
 return framework
+
