@@ -121,26 +121,6 @@ function Emitter:propagate(eventName, target)
   return self
 end
 
-local ffi = require('ffi')
-
--- Added some missing function in the luvit > 2.0 release
-
-ffi.cdef [[
-  int gethostname(char *name, unsigned int namelen);
-  ]]
-
---[[
-  Return the hostname
-  @param maxlen{integer,optional} defaults to 255
---]]
-function os.hostname (maxlen)
-  maxlen = maxlen or 255
-  local buf = ffi.new("uint8_t[?]", maxlen)
-  local res = ffi.C.gethostname(buf, maxlen)
-  assert(res == 0)
-  return ffi.string(buf)
-end
-
 local encode_alphabet = {
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
   'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
