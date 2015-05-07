@@ -521,6 +521,14 @@ function framework.util.auth(username, password)
   return notEmpty(username) and notEmpty(password) and (username .. ':' .. password) or nil
 end
 
+-- Returns an string for a Boundary Meter event.
+-- @param type could be 'CRITICAL', 'ERROR', 'WARN', 'INFO' 
+function framework.util.eventString(type, message, tags)
+  tags = tags or ''
+  return string.format('_bevent: %s |t:%s|tags:%s', message, type, tags)
+end
+local eventString = framework.util.eventString
+
 -- You can call framework.string() to export all functions to the string table to the global table for easy access.
 local function exportable(t)
   setmetatable(t, {
@@ -736,8 +744,44 @@ function Plugin:printInfo(msg)
   self:printEvent('info', msg)
 end
 
-function Plugin:printEvent(event, msg)
-  print("_bevent:" .. self.name .. " ".. msg .. ": version " .. self.version ..  concat("|t:" .. event ..  "|tags:lua,plugin", self.tags, ','))
+function Plugin:printWarn(msg)
+  self:printEvent('warn', msg)
+end
+
+function Plugin:printCritical(msg)
+  self:printEvent('critical', msg)
+end
+
+-- TODO: Add a unit test 
+function framework.table.merge(t1, t2)
+  local output = clone(t1)
+  for k, v in pairs(t2) do
+    if type(k) == 'number' then 
+      table.insert(output, v) 
+    else
+      output[k] = v
+    end
+  end
+  return output
+end
+local merge = framework.table.merge
+
+function Plugin.formatMessage(name, version, msg)
+  return string.format('%s version %s: %s', name, version, msg)
+end
+
+function Plugin.formatTags(tags)
+  tags = tags or {}
+  if type(tags) == 'string' then
+    tags = split(tags, ',') 
+  end
+  return table.concat(merge({'lua', 'plugin'}, tags), ',')
+end
+
+function Plugin:printEvent(eventType, msg)
+  msg = Plugin.formatMessage(self.name, self.version, msg)
+  tags = Plugin.formatTags(self.tags)
+  print(eventString(eventType, msg, tags))
 end
 
 function Plugin:_isPoller(poller)
