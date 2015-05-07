@@ -491,6 +491,7 @@ end
 local map = framework.functional.map
 
 -- TODO: Convert this to a generator
+-- TODO: Use gsplit instead of split
 function framework.string.parseCSV(data, separator, comment, header)
   separator = separator or ','
   local parsed = {}
@@ -971,11 +972,11 @@ framework.Accumulator = Accumulator
 local PollerCollection = Emitter:extend()
 function PollerCollection:initialize(pollers)
   self.pollers = pollers or {}
-
 end
 
 function PollerCollection:add(poller)
   table.insert(self.pollers, poller)
+  poller:propagate('error', self)
 end
 
 function PollerCollection:run(callback)
@@ -987,7 +988,6 @@ function PollerCollection:run(callback)
   for _,p in pairs(self.pollers) do
     p:run(callback)
   end
-
 end
 
 --- WebRequestDataSource Class
