@@ -454,9 +454,11 @@ function framework.string.isEmpty(str)
 end
 local isEmpty = framework.string.isEmpty
 
-function framework.string.notEmpty(str)
-  return not framework.string.isEmpty(str)
+--- If not empty returns the value. If is empty, an a default value was specified, it will return that value.
+function framework.string.notEmpty(str, default)
+  return not framework.string.isEmpty(str) and str or default
 end
+local notEmpty = framework.string.notEmpty
 
 function framework.string.concat(s1, s2, char)
   if isEmpty(s2) then
@@ -464,9 +466,6 @@ function framework.string.concat(s1, s2, char)
   end
   return s1 .. char .. s2
 end
-local concat = framework.string.concat
-
-local notEmpty = framework.string.notEmpty
 
 function framework.table.create(keys, values)
   local result = {}
@@ -725,8 +724,7 @@ function Plugin:initialize(params, dataSource)
   else
     self.dataSource = dataSource
   end
-
-  self.source = params.source and params.source ~= "" and params.source or os.hostname()
+  self.source = notEmpty(params.source, os.hostname())
   self.version = params.version or '1.0'
   self.name = params.name or 'Boundary Plugin'
   self.tags = params.tags or ''
@@ -780,7 +778,7 @@ end
 
 function Plugin:printEvent(eventType, msg)
   msg = Plugin.formatMessage(self.name, self.version, msg)
-  tags = Plugin.formatTags(self.tags)
+  local tags = Plugin.formatTags(self.tags)
   print(eventString(eventType, msg, tags))
 end
 
