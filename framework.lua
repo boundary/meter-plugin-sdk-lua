@@ -28,6 +28,7 @@ local framework = {}
 local querystring = require('querystring')
 local boundary = require('boundary')
 
+framework.version = '0.9.1'
 framework.boundary = boundary
 framework.params = boundary.param
 
@@ -806,6 +807,7 @@ function Plugin:run()
   self.dataSource:run(function (...) self:parseValues(...) end)
 end
 
+-- TODO: Use pcall?
 function Plugin:parseValues(...)
   local metrics = self:onParseValues(...)
   if not metrics then
@@ -1147,11 +1149,17 @@ local CommandOutputDataSource = DataSource:extend()
 --- CommandOutputDataSource constructor
 -- @paramas a table with path and args of the command to execute
 function CommandOutputDataSource:initialize(params)
+  -- TODO: Handle commands for each operating system.
   assert(params, 'CommandOuptutDataSource:new exect a non-nil params parameter')
   self.path = params.path
   self.args = params.args
   self.success_exitcode = params.success_exitcode or 0
   self.info = params.info
+  self.callback_on_errors = params.callback_on_errors
+end
+
+function CommandOutputDataSource:isSuccess(exitcode)
+  return tonumber(exitcode) == self.success_exitcode
 end
 
 --- Returns the output of execution of the command
@@ -1162,12 +1170,15 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
   proc.stdout:on('data', function (data) output = output .. data end)
   proc.stderr:on('data', function (data) output = output .. data end)
   proc:on('exit', function (exitcode)
-    if tonumber(exitcode) ~= self.success_exitcode then
-      self:emit('error', {message = 'Program terminated with exitcode \'' .. exitcode .. '\' and message \'' .. output .. '\''})
-      return
+    if not self:isSuccess(exitcode) then
+      self:emit('error', {message = 'Command terminated with exitcode \'' .. exitcode .. '\' and message \'' .. output .. '\''})
+      if not self.callback_on_errors then
+        return
+      end
     end
+    -- TODO: Add context for callback?
     if callback then
-    callback({info = self.info, output = output})
+    callback({context = self, info = self.info, output = output})
     end
   end)
 end
