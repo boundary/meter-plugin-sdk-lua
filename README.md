@@ -135,3 +135,68 @@ CPU_CORE 0.080000 CPU_1 1430181477
 CPU_CORE 0.340000 CPU_3 1430181477
 CPU_CORE 0.570000 CPU_2 1430181480
 ```
+### Example 4 - Creating DataSources dynamically
+
+In this example we will get the page response time for each link on the site http://lua-urers.org/wiki. We create a WebRequestDataSource to get the initial page, parse the links and create a WebRequestDataSource for each link extracted. For each new request we will get the page response time and send it the Plugin to report the metric.
+
+
+```lua
+local framework = require('framework')
+local url = require('url')
+local Plugin = framework.Plugin
+local WebRequestDataSource = framework.WebRequestDataSource
+local DataSource = framework.DataSource
+local string = require('string')
+local table = require('table')
+local parseLinks = framework.util.parseLinks
+local isRelativeLink = framework.util.isRelativeLink
+local absoluteLink = framework.util.absoluteLink
+
+local options = url.parse('http://lua-users.org/wiki/')
+options.wait_for_end = true
+local ds = WebRequestDataSource:new(options)
+
+ds:chain(function (context, callback, data) 
+  local links = parseLinks(data)
+  local data_sources = {}
+  for i, v in ipairs(links) do
+    if isRelativeLink(v) then
+      v = absoluteLink('http://lua-users.org', v)
+      local options = url.parse(v)
+      options.meta = v
+      local child_ds = WebRequestDataSource:new(options))
+      child_ds:propagate('error', context) -- just propagate any error up-to the chain
+      table.insert(data_sources, child_ds) 
+    end
+  end
+  return data_sources
+end)
+
+local params = { pollInterval = 2000 }
+local plugin = Plugin:new(params, ds)
+
+function plugin:onParseValues(data, extra)
+  local result = {}
+
+  result['PAGE_RESPONSE_TIME'] = { value = extra.response_time, source = extra.info }
+
+  return result
+end
+
+plugin:run()
+```
+Running this Plugin we will see the following ouptut:
+
+```sh
+> /usr/bin/boundary-meter --lua init.lua
+_bevent:Boundary Plugin up : version 1.0|t:info|tags:lua,plugin
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/ 1430248084
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/LuaDirectory 1430248084
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/LuaAddons 1430248084
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/LuaFaq 1430248084
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/SampleCode 1430248084
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/CastOfCharacters 1430248084
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/WikiHelp 1430248084
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/GuestBook 1430248084
+PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/RecentChanges 1430248084
+```

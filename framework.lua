@@ -7,9 +7,8 @@
 ----
 ---- @author Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
 ---- @copyright Boundary.com 2015
----- @license MIT
+---- @license Apache 2.0 
 ---------------
-local fs = require('fs')
 local Emitter = require('core').Emitter
 local Object = require('core').Object
 local timer = require('timer')
@@ -27,12 +26,10 @@ local json = require('json')
 local _url = require('url')
 local framework = {}
 local querystring = require('querystring')
-
 local boundary = require('boundary')
-local params = boundary.param
 
 framework.boundary = boundary
-framework.params = params
+framework.params = boundary.param
 
 framework.string = {}
 framework.functional = {}
@@ -124,26 +121,6 @@ function Emitter:propagate(eventName, target)
   return self
 end
 
-local ffi = require('ffi')
-
--- Added some missing function in the luvit > 2.0 release
-
-ffi.cdef [[
-  int gethostname(char *name, unsigned int namelen);
-  ]]
-
---[[
-  Return the hostname
-  @param maxlen{integer,optional} defaults to 255
---]]
-function os.hostname (maxlen)
-  maxlen = maxlen or 255
-  local buf = ffi.new("uint8_t[?]", maxlen)
-  local res = ffi.C.gethostname(buf, maxlen)
-  assert(res == 0)
-  return ffi.string(buf)
-end
-
 local encode_alphabet = {
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
   'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
@@ -199,18 +176,18 @@ local function encode(str, no_padding)
 
     -- get six bits at a time and translate to base64
     for j = 18, 0, -6 do
-    table.insert(output, translate(mask6bits(bit.ror(buffer, j))))
-  end
-  i = i + 3
+      table.insert(output, translate(mask6bits(bit.ror(buffer, j))))
+    end
+    i = i + 3
   end
   -- If was padded then replace with = characters
   local padding_char = no_padding and '' or '='
 
-   if bytesTotal % 3 == 1  then
-        output[#output-1] = padding_char
-        output[#output] = padding_char
+  if bytesTotal % 3 == 1  then
+    output[#output-1] = padding_char
+    output[#output] = padding_char
   elseif bytesTotal % 3 == 2 then
-  output[#output] = padding_char
+    output[#output] = padding_char
    end
 
   return table.concat(output)
@@ -246,9 +223,13 @@ framework.util.base64Decode = decode
 
 --- Trim blanks from the string
 function framework.string.trim(self)
-  --return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
   return string.match(self, '^%s*(.-)%s*$')
 end
+
+function framework.string.charAt(self, i)
+  return string.sub(self, i, i)
+end
+local charAt = framework.string.charAt
 
 function framework.util.parseLinks(data)
   local links = {}
@@ -271,7 +252,6 @@ end
 --- Wraps a function to calculate the time passed between the wrap and the function execution.
 function framework.util.timed(func, startTime)
   startTime = startTime or os.time()
-
   return function(...)
     return os.time() - startTime, func(...)
   end
@@ -320,8 +300,19 @@ function framework.table.get(key, map)
   if type(map) ~= 'table' then
     return nil
   end
-
   return map[key]
+end
+
+function framework.table.indexOf(self, value)
+  if type(self) ~= 'table' then
+    return nil
+  end
+  for i,v in ipairs(self) do
+    if value == v then
+      return i
+    end
+  end
+  return nil
 end
 
 function framework.table.keys(t)
@@ -353,7 +344,6 @@ framework.table.clone = clone
 
 function framework.string.contains(pattern, str)
   local s,_ = string.find(str, pattern)
-
   return s ~= nil
 end
 
@@ -361,7 +351,6 @@ function framework.string.replace(str, map)
   for k, v in pairs(map) do
     str = str:gsub('{' .. k .. '}', v)
   end
-
   return str
 end
 
@@ -413,20 +402,50 @@ function framework.string.jsonsplit(self)
   return outResults
 end
 
-function framework.string.split(self, pattern)
-  if not self then
+function framework.string.gsplit(data, separator)
+  local pos = 1
+  local iter = function()
+    if not pos then -- stop the generator (maybe using stateless is a better option?)
+      return nil
+    end
+    local s, e = string.find(data, separator, pos) 
+    if s then
+      local part = string.sub(data, pos, s-1) 
+      pos = e + 1
+      return part
+    else
+      local part = string.sub(data, pos)
+      pos = nil  
+      return part
+    end
+  end
+  return iter, data, 1
+end
+local gsplit = framework.string.gsplit
+
+function framework.string.isplit(data, separator, func)
+  for part in gsplit(data, separator) do
+    func(part)
+  end
+end
+local isplit = framework.string.isplit
+
+function framework.string.split(data, separator)
+  if not data then
     return nil
   end
-  local outResults = {}
-  local theStart = 1
-  local theSplitStart, theSplitEnd = string.find(self, pattern, theStart)
-  while theSplitStart do
-    table.insert( outResults, string.sub( self, theStart, theSplitStart-1 ) )
-    theStart = theSplitEnd + 1
-    theSplitStart, theSplitEnd = string.find( self, pattern, theStart )
-  end
-  table.insert( outResults, string.sub( self, theStart ) )
-  return outResults
+  local result = {}
+  isplit(data, separator, function (part) table.insert(result, part) end) 
+  return result
+end
+local split = framework.string.split
+
+function framework.util.pack(metric, value, timestamp, source)
+  return { metric = metric, value = value, timestamp = timestamp, source = source }
+end
+
+function framework.util.packValue(value, timestamp, source)
+  return { value = value, timestamp = timestamp, source = source }
 end
 
 --- Check if the string is empty. Before checking it will be trimmed to remove blank spaces.
@@ -440,19 +459,75 @@ function framework.string.notEmpty(str)
 end
 
 function framework.string.concat(s1, s2, char)
- if isEmpty(s2) then
-  return s1
- end
-
+  if isEmpty(s2) then
+    return s1
+  end
   return s1 .. char .. s2
 end
 local concat = framework.string.concat
 
 local notEmpty = framework.string.notEmpty
 
+function framework.table.create(keys, values)
+  local result = {}
+  for i, k in ipairs(keys) do
+    if notEmpty(trim(k)) then
+      result[k] = values[i]
+    end
+  end
+  return result
+end
+
+function framework.util.parseValue(x) 
+  return tonumber(x) or (isEmpty(x) and 0) or tostring(x) or 0
+end
+local parseValue = framework.util.parseValue
+
+function framework.functional.map(self, func)
+  local result = {}
+  table.foreach(self, function (i, v) table.insert(result, func(v)) end)
+  return result
+end
+local map = framework.functional.map
+
+-- TODO: Convert this to a generator
+-- TODO: Use gsplit instead of split
+function framework.string.parseCSV(data, separator, comment, header)
+  separator = separator or ','
+  local parsed = {}
+  local lines = split(data, '\n')
+  local headers
+  if header then
+    local header_line = string.match(lines[1], comment .. '%s*([' .. separator .. '%S]+)%s*')
+    headers = split(trim(header_line), separator)
+  end
+  for _, v in ipairs(lines) do
+    if notEmpty(v) then
+      if not comment or not (charAt(v, 1) == comment) then
+        local values = split(v, separator)
+        values = map(values, parseValue)
+        if headers then
+          table.insert(parsed, framework.table.create(headers, values)) 
+        else
+          table.insert(parsed, values) 
+        end
+      end
+    end
+  end
+  return parsed
+end
+
 function framework.util.auth(username, password)
   return notEmpty(username) and notEmpty(password) and (username .. ':' .. password) or nil
 end
+
+-- Returns an string for a Boundary Meter event.
+-- @param type could be 'CRITICAL', 'ERROR', 'WARN', 'INFO' 
+function framework.util.eventString(type, message, tags)
+  tags = tags or ''
+  return string.format('_bevent: %s |t:%s|tags:%s', message, type, tags)
+end
+local eventString = framework.util.eventString
 
 -- You can call framework.string() to export all functions to the string table to the global table for easy access.
 local function exportable(t)
@@ -577,18 +652,16 @@ function NetDataSource:fetch(context, callback)
 
   local socket
   socket = net.createConnection(self.port, self.host, function ()
-
     self:onFetch(socket)
 
     if callback then
       socket:once('data', function (data)
         callback(data)
-        socket:shutdown()
+        socket:done()
       end)
     else
-      socket:shutdown()
+      socket:done()
     end
-
   end)
   socket:on('error', function (err) self:emit('error', 'Socket error: ' .. err.message) end)
 end
@@ -612,7 +685,6 @@ end
 
 function DataSourcePoller:_poll(callback)
   self.dataSource:fetch(self, callback)
-
   timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
 end
 
@@ -672,8 +744,44 @@ function Plugin:printInfo(msg)
   self:printEvent('info', msg)
 end
 
-function Plugin:printEvent(event, msg)
-  print("_bevent:" .. self.name .. " ".. msg .. ": version " .. self.version ..  concat("|t:" .. event ..  "|tags:lua,plugin", self.tags, ','))
+function Plugin:printWarn(msg)
+  self:printEvent('warn', msg)
+end
+
+function Plugin:printCritical(msg)
+  self:printEvent('critical', msg)
+end
+
+-- TODO: Add a unit test 
+function framework.table.merge(t1, t2)
+  local output = clone(t1)
+  for k, v in pairs(t2) do
+    if type(k) == 'number' then 
+      table.insert(output, v) 
+    else
+      output[k] = v
+    end
+  end
+  return output
+end
+local merge = framework.table.merge
+
+function Plugin.formatMessage(name, version, msg)
+  return string.format('%s version %s: %s', name, version, msg)
+end
+
+function Plugin.formatTags(tags)
+  tags = tags or {}
+  if type(tags) == 'string' then
+    tags = split(tags, ',') 
+  end
+  return table.concat(merge({'lua', 'plugin'}, tags), ',')
+end
+
+function Plugin:printEvent(eventType, msg)
+  msg = Plugin.formatMessage(self.name, self.version, msg)
+  tags = Plugin.formatTags(self.tags)
+  print(eventString(eventType, msg, tags))
 end
 
 function Plugin:_isPoller(poller)
@@ -705,7 +813,6 @@ function Plugin:parseValues(...)
   if not metrics then
     return
   end
-
   self:report(metrics)
 end
 
@@ -722,8 +829,13 @@ function Plugin:onReport(metrics)
   -- metrics can be { metric = value }
   -- or {metric = {value, source}}
   -- or {metric = {{value, source}, {value, source}, {value, source}}
+  -- or {metric, value, source}
+  -- or {{metric, value, source, timestamp}}
   for metric, v in pairs(metrics) do
-    if type(v) ~= 'table' then
+    -- { { metric, value .. }, { metric, value .. } }
+    if type(metric) == 'number' then
+      print(self:format(v.metric, v.value, v.source, v.timestamp or currentTimestamp()))
+    elseif type(v) ~= 'table' then
       print(self:format(metric, v, self.source, currentTimestamp()))
     elseif type(v[1]) ~= 'table' and v.value then
       -- looking for { metric = { value, source, timestamp }}
@@ -767,7 +879,6 @@ function CommandPlugin:initialize(params)
   if not params.command then
     error('params.command undefined. You need to define the command to excetue.')
   end
-
   self.command = params.command
 end
 
@@ -802,7 +913,6 @@ framework.HttpPlugin = HttpPlugin
 
 function HttpPlugin:initialize(params)
   Plugin.initialize(self, params)
-
   self.reqOptions = {
     host = params.host,
     port = params.port,
@@ -816,8 +926,6 @@ framework.PollingPlugin = PollingPlugin
 
 function HttpPlugin:makeRequest(reqOptions, successCallback)
   local req = http.request(reqOptions, function (res)
-
-
     local data = ''
 
     res:on('data', function (chunk)
@@ -832,7 +940,6 @@ function HttpPlugin:makeRequest(reqOptions, successCallback)
     end)
 
   end)
-
   req:on('error', function (err)
     local msg = 'Error while sending a request: ' .. err.message
     self:error(msg)
@@ -874,7 +981,7 @@ end
 -- @param value the item value
 -- @return diff the delta between the latests and actual value.
 function Accumulator:accumulate(key, value)
-  assert(value, "Accumulator:accumulate#value must not be null.")
+  assert(value, "Accumulator:accumulate#value must not be null for key " .. key)
 
   local oldValue = self.map[key]
   if oldValue == nil then
@@ -909,11 +1016,11 @@ framework.Accumulator = Accumulator
 local PollerCollection = Emitter:extend()
 function PollerCollection:initialize(pollers)
   self.pollers = pollers or {}
-
 end
 
 function PollerCollection:add(poller)
   table.insert(self.pollers, poller)
+  poller:propagate('error', self)
 end
 
 function PollerCollection:run(callback)
@@ -925,7 +1032,6 @@ function PollerCollection:run(callback)
   for _,p in pairs(self.pollers) do
     p:run(callback)
   end
-
 end
 
 --- WebRequestDataSource Class
@@ -962,7 +1068,6 @@ function WebRequestDataSource:fetch(context, callback, params)
   local buffer = ''
 
   local success = function (res)
-
     if self.wait_for_end then
       res:on('end', function ()
         local exec_time = os.time() - start_time
@@ -975,7 +1080,6 @@ function WebRequestDataSource:fetch(context, callback, params)
       res:once('data', function (data)
         local exec_time = os.time() - start_time
         buffer = buffer .. data
-
         if not self.wait_for_end then
           self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
           res:destroy()
@@ -995,7 +1099,7 @@ function WebRequestDataSource:fetch(context, callback, params)
   options.headers['User-Agent'] = 'Boundary Meter <support@boundary.com>'
 
   if options.auth then
-    options.headers['Authorization'] = 'Basic ' .. base64Encode(options.auth, true)
+    options.headers['Authorization'] = 'Basic ' .. base64Encode(options.auth, false)
   end
 
   local data = options.data
@@ -1031,7 +1135,7 @@ local RandomDataSource = DataSource:extend()
 --- RandomDataSource constructor
 -- @int minValue the lower bounds for the random number generation.
 -- @int maxValue the upper bound for the random number generation.
---@usage local ds = RandomDataSource:new(1, 100)
+-- @usage local ds = RandomDataSource:new(1, 100)
 function RandomDataSource:initialize(minValue, maxValue)
   DataSource.initialize(self, function ()
     return math.random(minValue, maxValue)
@@ -1064,11 +1168,9 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
       self:emit('error', {message = 'Program terminated with exitcode \'' .. exitcode .. '\' and message \'' .. output .. '\''})
       return
     end
-
     if callback then
-      callback({info = self.info, output = output})
+    callback({info = self.info, output = output})
     end
-
   end)
 end
 
@@ -1081,7 +1183,6 @@ end
 
 function MeterDataSource:fetch(context, callback)
   local parse = function (value)
-
     local parsed = json.parse(value)
     local result = {}
     if parsed.result.status ~= 'Ok' then
@@ -1093,10 +1194,8 @@ function MeterDataSource:fetch(context, callback)
     for i = 1, table.getn(query_metric), 3 do
       table.insert(result, {metric = query_metric[i], value = query_metric[i+1], timestamp = query_metric[i+2]})
     end
-
     callback(result)
   end
-
   NetDataSource.fetch(self, context, parse)
 end
 
@@ -1113,5 +1212,4 @@ framework.PollerCollection = PollerCollection
 framework.MeterDataSource = MeterDataSource
 
 return framework
-
 
