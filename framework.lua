@@ -726,7 +726,7 @@ function Plugin:initialize(params, dataSource)
     self.dataSource = dataSource
   end
 
-  self.source = params.source or os.hostname()
+  self.source = params.source and params.source ~= "" and params.source or os.hostname()
   self.version = params.version or '1.0'
   self.name = params.name or 'Boundary Plugin'
   self.tags = params.tags or ''
@@ -1191,8 +1191,10 @@ function MeterDataSource:fetch(context, callback)
     end
 
     local query_metric = parsed.result.query_metric
-    for i = 1, table.getn(query_metric), 3 do
-      table.insert(result, {metric = query_metric[i], value = query_metric[i+1], timestamp = query_metric[i+2]})
+    if query_metric then
+      for i = 1, table.getn(query_metric), 3 do
+        table.insert(result, {metric = query_metric[i], value = query_metric[i+1], timestamp = query_metric[i+2]})
+      end
     end
     callback(result)
   end
