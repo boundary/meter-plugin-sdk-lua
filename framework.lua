@@ -48,9 +48,9 @@ function framework.util.parseUrl(url, parseQueryString)
   url = url:sub((chunk and #chunk or 0) + 1)
 
   local auth
-  chunk, auth = url:match('(([0-9a-zA-Z]+:?[0-9a-zA-Z]+)@)') 
+  chunk, auth = url:match('(([0-9a-zA-Z]+:?[0-9a-zA-Z]+)@)')
   url = url:sub((chunk and #chunk or 0) + 1)
-         
+        
   local host
   local hostname
   local port
@@ -69,8 +69,8 @@ function framework.util.parseUrl(url, parseQueryString)
   local pathname
   local search
   local query
-  local hash  
-  hash = url:match("(#.*)$") 
+  local hash 
+  hash = url:match("(#.*)$")
   url = url:sub(1, (#url - (hash and #hash or 0)))
 
   if url ~= '' then
@@ -113,16 +113,16 @@ end
 
 _url.parse = framework.util.parseUrl
 
--- Propagate the event to another emitter.                                                 
+-- Propagate the event to another emitter.                                                
 -- TODO: Will be removed when migrating to luvit 2.0.x
-function Emitter:propagate(eventName, target)                                              
-  if (target and target.emit) then                                                         
-    self:on(eventName, function (...) target:emit(eventName, ...) end)                     
-    return target                                                                          
-  end                                                                                      
-                                                                                           
-  return self                                                                              
-end     
+function Emitter:propagate(eventName, target)                                             
+  if (target and target.emit) then                                                        
+    self:on(eventName, function (...) target:emit(eventName, ...) end)                    
+    return target                                                                         
+  end                                                                                     
+                                                                                          
+  return self                                                                             
+end    
 
 local ffi = require('ffi')
 
@@ -156,7 +156,7 @@ for i, v in ipairs(encode_alphabet) do
 end
 
 local function translate(sixbit)
-  return encode_alphabet[sixbit + 1] 
+  return encode_alphabet[sixbit + 1]
 end
 
 local function unTranslate(char)
@@ -172,7 +172,7 @@ local function mask6bits(byte)
 end
 
 local function pad(bytes)
-  local to_pad = 3 - #bytes % 3 
+  local to_pad = 3 - #bytes % 3
   while to_pad > 0 and to_pad ~= 3 do
     table.insert(bytes, 0x0)
     to_pad = to_pad - 1
@@ -189,11 +189,11 @@ local function encode(str, no_padding)
   end
   bytes = pad(bytes)
   local output = {}
- 
+
   local i = 1
   while i < #bytes do
     -- read three bytes into a 24 bit buffer to produce 4 coded bytes.
-    local buffer = bit.rol(bytes[i], 16)  
+    local buffer = bit.rol(bytes[i], 16) 
     buffer = bit.bor(buffer, bit.rol(bytes[i+1], 8))
     buffer = bit.bor(buffer, bytes[i+2])
 
@@ -203,14 +203,14 @@ local function encode(str, no_padding)
   end
   i = i + 3
   end
-  -- If was padded then replace with = characters 
+  -- If was padded then replace with = characters
   local padding_char = no_padding and '' or '='
 
    if bytesTotal % 3 == 1  then
-        output[#output-1] = padding_char 
-        output[#output] = padding_char 
+        output[#output-1] = padding_char
+        output[#output] = padding_char
   elseif bytesTotal % 3 == 2 then
-  output[#output] = padding_char 
+  output[#output] = padding_char
    end
 
   return table.concat(output)
@@ -223,7 +223,7 @@ local function decode(str)
   while i < #str do
     local buffer = 0
     -- get the octet represented by the coded base64 char
-    -- shift left by 6 bits and or 
+    -- shift left by 6 bits and or
     -- mask the 3 bytes, and convert to ascii
 
     for j = 18, 0, -6 do
@@ -248,7 +248,7 @@ framework.util.base64Decode = decode
 function framework.string.trim(self)
   --return string.match(self,"^()%s*$") and "" or string.match(self,"^%s*(.*%S)" )
   return string.match(self, '^%s*(.-)%s*$')
-end 
+end
 
 function framework.util.parseLinks(data)
   local links = {}
@@ -272,7 +272,7 @@ end
 function framework.util.timed(func, startTime)
   startTime = startTime or os.time()
 
-  return function(...) 
+  return function(...)
     return os.time() - startTime, func(...)
   end
 end
@@ -299,9 +299,9 @@ function framework.util.megaBytesToBytes(mb)
   return mb * 1024 * 1024
 end
 
-function framework.functional.partial(func, x) 
+function framework.functional.partial(func, x)
   return function (...)
-    return func(x, ...) 
+    return func(x, ...)
   end
 end
 
@@ -311,14 +311,14 @@ end
 local identity = framework.functional.identity
 
 function framework.functional.compose(f, g)
-  return function(...) 
+  return function(...)
     return g(f(...))
   end
 end
 
 function framework.table.get(key, map)
   if type(map) ~= 'table' then
-    return nil 
+    return nil
   end
 
   return map[key]
@@ -439,9 +439,9 @@ function framework.string.notEmpty(str)
   return not framework.string.isEmpty(str)
 end
 
-function framework.string.concat(s1, s2, char) 
+function framework.string.concat(s1, s2, char)
  if isEmpty(s2) then
-  return s1 
+  return s1
  end
 
   return s1 .. char .. s2
@@ -458,7 +458,7 @@ end
 local function exportable(t)
   setmetatable(t, {
     __call = function (u, warn)
-      for k,v in pairs(u) do 
+      for k,v in pairs(u) do
         if (warn) then
           if _G[k] ~= nil then
             process.stderr:write('Warning: Overriding function ' .. k ..' on global space.')
@@ -485,7 +485,7 @@ function Cache:initialize(func)
   self.cache = {}
 end
 
-function Cache:get(key) 
+function Cache:get(key)
   assert(key, 'Cache:get key must be non-nil')
   local result = self.cache[key]
   if not result then
@@ -546,7 +546,7 @@ function DataSource:processResult(context, callback, ...)
         end
       else
         --TODO: Use the result of f() or just result? because f can be also a transform function and if you are asigning to a chain the result of this will be the continuated value.
-        callback(...) 
+        callback(...)
       end
     else
       transform = transform or identity
@@ -597,13 +597,13 @@ framework.NetDataSource = NetDataSource
 
 --- DataSourcePoller class
 -- @type DataSourcePoller
-local DataSourcePoller = Emitter:extend() 
+local DataSourcePoller = Emitter:extend()
 
 --- DataSourcePoller constructor.
--- DataSourcePoller Polls a DataSource at the specified interval and calls a callback when there is some data available. 
--- @int pollInterval number of milliseconds to poll for data 
+-- DataSourcePoller Polls a DataSource at the specified interval and calls a callback when there is some data available.
+-- @int pollInterval number of milliseconds to poll for data
 -- @param dataSource A DataSource to be polled
--- @name DataSourcePoller:new 
+-- @name DataSourcePoller:new
 function DataSourcePoller:initialize(pollInterval, dataSource)
   self.pollInterval = pollInterval
   self.dataSource = dataSource
@@ -617,9 +617,9 @@ function DataSourcePoller:_poll(callback)
 end
 
 --- Start polling for data.
--- @func callback A callback function to call when the DataSource returns some data. 
+-- @func callback A callback function to call when the DataSource returns some data.
 function DataSourcePoller:run(callback)
-  if self.running then 
+  if self.running then
     return
   end
 
@@ -637,8 +637,8 @@ framework.Plugin = Plugin
 -- @param params is a table of options that can be:
 --  pollInterval (optional) the poll interval between data fetchs. This is required if you pass a plain DataSource and not a DataSourcePoller.
 --  source (optional)
---  version (options) the version of the plugin.    
--- @param dataSource A DataSource that will be polled for data. 
+--  version (options) the version of the plugin.   
+-- @param dataSource A DataSource that will be polled for data.
 -- If is a DataSource a DataSourcePoller will be created internally to pool for data
 -- It can also be a DataSourcePoller or PollerCollection.
 -- @name Plugin:new
@@ -650,7 +650,7 @@ function Plugin:initialize(params, dataSource)
   if not Plugin:_isPoller(dataSource) then
     self.dataSource = DataSourcePoller:new(pollInterval, dataSource)
     self.dataSource:propagate('error', self)
-  else 
+  else
     self.dataSource = dataSource
   end
 
@@ -677,7 +677,7 @@ function Plugin:printEvent(event, msg)
 end
 
 function Plugin:_isPoller(poller)
-  return poller.run 
+  return poller.run
 end
 
 --- Called when the Plugin detect and error in one of his components.
@@ -735,20 +735,20 @@ function Plugin:onReport(metrics)
       -- looking for { metric = {{ value, source, timestamp }}}
       for _, j in pairs(v) do
         local source = j.source or self.source
-        local value = j.value 
+        local value = j.value
         local timestamp = j.timestamp or currentTimestamp()
         print(self:format(metric, value, source, timestamp))
       end
-    end 
+    end
   end
 end
 
 function Plugin:format(metric, value, source, timestamp)
   self:emit('format')
-  return self:onFormat(metric, value, source, timestamp) 
+  return self:onFormat(metric, value, source, timestamp)
 end
 
---- Called by the framework before formating the metric output. 
+--- Called by the framework before formating the metric output.
 -- @string metric the metric name
 -- @param value the value to format
 -- @string source the source to report for the metric
@@ -772,7 +772,7 @@ function CommandPlugin:initialize(params)
 end
 
 function CommandPlugin:execCommand(callback)
-  local proc = io.popen(self.command, 'r')  
+  local proc = io.popen(self.command, 'r') 
   local output = proc:read("*a")
   proc:close()
   if callback then
@@ -821,7 +821,7 @@ function HttpPlugin:makeRequest(reqOptions, successCallback)
     local data = ''
 
     res:on('data', function (chunk)
-      data = data .. chunk  
+      data = data .. chunk 
       successCallback(data)
       -- TODO: Verify when data its complete or when we need to use de end
     end)
@@ -848,7 +848,7 @@ function HttpPlugin:onPoll()
 end
 
 function HttpPlugin:parseResponse(data)
-  local metrics = self:onParseResponse(data) 
+  local metrics = self:onParseResponse(data)
   self:report(metrics)
 end
 
@@ -878,7 +878,7 @@ function Accumulator:accumulate(key, value)
 
   local oldValue = self.map[key]
   if oldValue == nil then
-    oldValue = value  
+    oldValue = value 
   end
 
   self.map[key] = value
@@ -907,7 +907,7 @@ end
 framework.Accumulator = Accumulator
 
 local PollerCollection = Emitter:extend()
-function PollerCollection:initialize(pollers) 
+function PollerCollection:initialize(pollers)
   self.pollers = pollers or {}
 
 end
@@ -916,7 +916,7 @@ function PollerCollection:add(poller)
   table.insert(self.pollers, poller)
 end
 
-function PollerCollection:run(callback) 
+function PollerCollection:run(callback)
   if self.running then
     return
   end
@@ -961,17 +961,17 @@ function WebRequestDataSource:fetch(context, callback, params)
 
   local buffer = ''
 
-  local success = function (res) 
+  local success = function (res)
 
     if self.wait_for_end then
       res:on('end', function ()
-        local exec_time = os.time() - start_time  
+        local exec_time = os.time() - start_time 
         --callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
         self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
 
         res:destroy()
       end)
-    else 
+    else
       res:once('data', function (data)
         local exec_time = os.time() - start_time
         buffer = buffer .. data
@@ -981,9 +981,9 @@ function WebRequestDataSource:fetch(context, callback, params)
           res:destroy()
         end
       end)
-    end 
+    end
 
-    res:on('data', function (d) 
+    res:on('data', function (d)
       buffer = buffer .. d
     end)
 
@@ -1001,9 +1001,9 @@ function WebRequestDataSource:fetch(context, callback, params)
   local data = options.data
   local body
   if data and table.getn(data) > 0 then
-    body = table.concat(data, '&') 
+    body = table.concat(data, '&')
     options.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-    options.headers['Content-Length'] = #body 
+    options.headers['Content-Length'] = #body
   end
 
   local req
@@ -1033,7 +1033,7 @@ local RandomDataSource = DataSource:extend()
 -- @int maxValue the upper bound for the random number generation.
 --@usage local ds = RandomDataSource:new(1, 100)
 function RandomDataSource:initialize(minValue, maxValue)
-  DataSource.initialize(self, function () 
+  DataSource.initialize(self, function ()
     return math.random(minValue, maxValue)
   end)
 end
@@ -1054,12 +1054,12 @@ end
 
 --- Returns the output of execution of the command
 function CommandOutputDataSource:fetch(context, callback, parser, params)
-  local output = '' 
+  local output = ''
   local proc = childprocess.spawn(self.path, self.args)
   proc:propagate('error', self)
   proc.stdout:on('data', function (data) output = output .. data end)
   proc.stderr:on('data', function (data) output = output .. data end)
-  proc:on('exit', function (exitcode) 
+  proc:on('exit', function (exitcode)
     if tonumber(exitcode) ~= self.success_exitcode then
       self:emit('error', {message = 'Program terminated with exitcode \'' .. exitcode .. '\' and message \'' .. output .. '\''})
       return
@@ -1080,7 +1080,7 @@ function MeterDataSource:initialize(host, port)
 end
 
 function MeterDataSource:fetch(context, callback)
-  local parse = function (value) 
+  local parse = function (value)
 
     local parsed = json.parse(value)
     local result = {}
@@ -1113,4 +1113,5 @@ framework.PollerCollection = PollerCollection
 framework.MeterDataSource = MeterDataSource
 
 return framework
+
 
