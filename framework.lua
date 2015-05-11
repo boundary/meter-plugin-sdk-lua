@@ -7,7 +7,7 @@
 ----
 ---- @author Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
 ---- @copyright Boundary.com 2015
----- @license Apache 2.0 
+---- @license Apache 2.0
 ---------------
 local Emitter = require('core').Emitter
 local Object = require('core').Object
@@ -408,14 +408,14 @@ function framework.string.gsplit(data, separator)
     if not pos then -- stop the generator (maybe using stateless is a better option?)
       return nil
     end
-    local s, e = string.find(data, separator, pos) 
+    local s, e = string.find(data, separator, pos)
     if s then
-      local part = string.sub(data, pos, s-1) 
+      local part = string.sub(data, pos, s-1)
       pos = e + 1
       return part
     else
       local part = string.sub(data, pos)
-      pos = nil  
+      pos = nil
       return part
     end
   end
@@ -435,7 +435,7 @@ function framework.string.split(data, separator)
     return nil
   end
   local result = {}
-  isplit(data, separator, function (part) table.insert(result, part) end) 
+  isplit(data, separator, function (part) table.insert(result, part) end)
   return result
 end
 local split = framework.string.split
@@ -478,7 +478,7 @@ function framework.table.create(keys, values)
   return result
 end
 
-function framework.util.parseValue(x) 
+function framework.util.parseValue(x)
   return tonumber(x) or (isEmpty(x) and 0) or tostring(x) or 0
 end
 local parseValue = framework.util.parseValue
@@ -507,9 +507,9 @@ function framework.string.parseCSV(data, separator, comment, header)
         local values = split(v, separator)
         values = map(values, parseValue)
         if headers then
-          table.insert(parsed, framework.table.create(headers, values)) 
+          table.insert(parsed, framework.table.create(headers, values))
         else
-          table.insert(parsed, values) 
+          table.insert(parsed, values)
         end
       end
     end
@@ -522,7 +522,7 @@ function framework.util.auth(username, password)
 end
 
 -- Returns an string for a Boundary Meter event.
--- @param type could be 'CRITICAL', 'ERROR', 'WARN', 'INFO' 
+-- @param type could be 'CRITICAL', 'ERROR', 'WARN', 'INFO'
 function framework.util.eventString(type, message, tags)
   tags = tags or ''
   return string.format('_bevent: %s |t:%s|tags:%s', message, type, tags)
@@ -726,7 +726,7 @@ function Plugin:initialize(params, dataSource)
     self.dataSource = dataSource
   end
 
-  self.source = params.source or os.hostname()
+  self.source = params.source and params.source ~= "" and params.source or os.hostname()
   self.version = params.version or '1.0'
   self.name = params.name or 'Boundary Plugin'
   self.tags = params.tags or ''
@@ -752,12 +752,12 @@ function Plugin:printCritical(msg)
   self:printEvent('critical', msg)
 end
 
--- TODO: Add a unit test 
+-- TODO: Add a unit test
 function framework.table.merge(t1, t2)
   local output = clone(t1)
   for k, v in pairs(t2) do
-    if type(k) == 'number' then 
-      table.insert(output, v) 
+    if type(k) == 'number' then
+      table.insert(output, v)
     else
       output[k] = v
     end
@@ -773,7 +773,7 @@ end
 function Plugin.formatTags(tags)
   tags = tags or {}
   if type(tags) == 'string' then
-    tags = split(tags, ',') 
+    tags = split(tags, ',')
   end
   return table.concat(merge({'lua', 'plugin'}, tags), ',')
 end
@@ -1191,8 +1191,10 @@ function MeterDataSource:fetch(context, callback)
     end
 
     local query_metric = parsed.result.query_metric
-    for i = 1, table.getn(query_metric), 3 do
-      table.insert(result, {metric = query_metric[i], value = query_metric[i+1], timestamp = query_metric[i+2]})
+    if query_metric then
+      for i = 1, table.getn(query_metric), 3 do
+        table.insert(result, {metric = query_metric[i], value = query_metric[i+1], timestamp = query_metric[i+2]})
+      end
     end
     callback(result)
   end
