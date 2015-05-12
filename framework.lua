@@ -28,6 +28,7 @@ local framework = {}
 local querystring = require('querystring')
 local boundary = require('boundary')
 
+framework.version = '0.9.1'
 framework.boundary = boundary
 framework.params = boundary.param
 
@@ -121,105 +122,106 @@ function Emitter:propagate(eventName, target)
   return self
 end
 
-local encode_alphabet = {
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
-}
+do
+  local encode_alphabet = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
+  }
 
-local decode_alphabet = {}
-for i, v in ipairs(encode_alphabet) do
-  decode_alphabet[v] = i-1
-end
-
-local function translate(sixbit)
-  return encode_alphabet[sixbit + 1]
-end
-
-local function unTranslate(char)
-  return decode_alphabet[char]
-end
-
-local function toBytes(str)
-  return { str:byte(1, #str) }
-end
-
-local function mask6bits(byte)
-  return bit.band(0x3f, byte)
-end
-
-local function pad(bytes)
-  local to_pad = 3 - #bytes % 3
-  while to_pad > 0 and to_pad ~= 3 do
-    table.insert(bytes, 0x0)
-    to_pad = to_pad - 1
+  local decode_alphabet = {}
+  for i, v in ipairs(encode_alphabet) do
+    decode_alphabet[v] = i-1
   end
 
-  return bytes
-end
-
-local function encode(str, no_padding)
-  local bytes = toBytes(str)
-  local bytesTotal = #bytes
-  if bytesTotal == 0 then
-      return ''
+  local function translate(sixbit)
+    return encode_alphabet[sixbit + 1]
   end
-  bytes = pad(bytes)
-  local output = {}
 
-  local i = 1
-  while i < #bytes do
-    -- read three bytes into a 24 bit buffer to produce 4 coded bytes.
-    local buffer = bit.rol(bytes[i], 16)
-    buffer = bit.bor(buffer, bit.rol(bytes[i+1], 8))
-    buffer = bit.bor(buffer, bytes[i+2])
-
-    -- get six bits at a time and translate to base64
-    for j = 18, 0, -6 do
-      table.insert(output, translate(mask6bits(bit.ror(buffer, j))))
-    end
-    i = i + 3
+  local function unTranslate(char)
+    return decode_alphabet[char]
   end
-  -- If was padded then replace with = characters
-  local padding_char = no_padding and '' or '='
 
-  if bytesTotal % 3 == 1  then
-    output[#output-1] = padding_char
-    output[#output] = padding_char
-  elseif bytesTotal % 3 == 2 then
-    output[#output] = padding_char
-   end
+  local function toBytes(str)
+    return { str:byte(1, #str) }
+  end
 
-  return table.concat(output)
-end
+  local function mask6bits(byte)
+    return bit.band(0x3f, byte)
+  end
 
-local function decode(str)
-  -- take four encoded octets and produce 3 decoded bytes.
-  local output = {}
-  local i = 1
-  while i < #str do
-    local buffer = 0
-    -- get the octet represented by the coded base64 char
-    -- shift left by 6 bits and or
-    -- mask the 3 bytes, and convert to ascii
-
-    for j = 18, 0, -6 do
-      local octet = unTranslate(str:sub(i, i))
-      buffer = bit.bor(bit.rol(octet, j), buffer)
-      i = i + 1
+  local function pad(bytes)
+    local to_pad = 3 - #bytes % 3
+    while to_pad > 0 and to_pad ~= 3 do
+      table.insert(bytes, 0x0)
+      to_pad = to_pad - 1
     end
 
-    for j = 16, 0, -8 do
-      local byte = bit.band(0xff, bit.ror(buffer, j))
-      table.insert(output, byte)
-    end
+    return bytes
   end
 
-  return string.char(unpack(output))
-end
+  local function encode(str, no_padding)
+    local bytes = toBytes(str)
+    local bytesTotal = #bytes
+    if bytesTotal == 0 then
+        return ''
+    end
+    bytes = pad(bytes)
+    local output = {}
 
-framework.util.base64Encode = encode
-framework.util.base64Decode = decode
+    local i = 1
+    while i < #bytes do
+      -- read three bytes into a 24 bit buffer to produce 4 coded bytes.
+      local buffer = bit.rol(bytes[i], 16)
+      buffer = bit.bor(buffer, bit.rol(bytes[i+1], 8))
+      buffer = bit.bor(buffer, bytes[i+2])
+
+      -- get six bits at a time and translate to base64
+      for j = 18, 0, -6 do
+        table.insert(output, translate(mask6bits(bit.ror(buffer, j))))
+      end
+      i = i + 3
+    end
+    -- If was padded then replace with = characters
+    local padding_char = no_padding and '' or '='
+
+    if bytesTotal % 3 == 1  then
+      output[#output-1] = padding_char
+      output[#output] = padding_char
+    elseif bytesTotal % 3 == 2 then
+      output[#output] = padding_char
+     end
+
+    return table.concat(output)
+  end
+
+  local function decode(str)
+    -- take four encoded octets and produce 3 decoded bytes.
+    local output = {}
+    local i = 1
+    while i < #str do
+      local buffer = 0
+      -- get the octet represented by the coded base64 char
+      -- shift left by 6 bits and or
+      -- mask the 3 bytes, and convert to ascii
+
+      for j = 18, 0, -6 do
+        local octet = unTranslate(str:sub(i, i))
+        buffer = bit.bor(bit.rol(octet, j), buffer)
+        i = i + 1
+      end
+
+      for j = 16, 0, -8 do
+        local byte = bit.band(0xff, bit.ror(buffer, j))
+        table.insert(output, byte)
+      end
+    end
+
+    return string.char(unpack(output))
+  end
+  framework.util.base64Encode = encode
+  framework.util.base64Decode = decode
+end
 
 --- Trim blanks from the string
 function framework.string.trim(self)
@@ -454,9 +456,11 @@ function framework.string.isEmpty(str)
 end
 local isEmpty = framework.string.isEmpty
 
-function framework.string.notEmpty(str)
-  return not framework.string.isEmpty(str)
+--- If not empty returns the value. If is empty, an a default value was specified, it will return that value.
+function framework.string.notEmpty(str, default)
+  return not framework.string.isEmpty(str) and str or default
 end
+local notEmpty = framework.string.notEmpty
 
 function framework.string.concat(s1, s2, char)
   if isEmpty(s2) then
@@ -464,9 +468,6 @@ function framework.string.concat(s1, s2, char)
   end
   return s1 .. char .. s2
 end
-local concat = framework.string.concat
-
-local notEmpty = framework.string.notEmpty
 
 function framework.table.create(keys, values)
   local result = {}
@@ -725,8 +726,7 @@ function Plugin:initialize(params, dataSource)
   else
     self.dataSource = dataSource
   end
-
-  self.source = params.source and params.source ~= "" and params.source or os.hostname()
+  self.source = notEmpty(params.source, os.hostname())
   self.version = params.version or '1.0'
   self.name = params.name or 'Boundary Plugin'
   self.tags = params.tags or ''
@@ -780,7 +780,7 @@ end
 
 function Plugin:printEvent(eventType, msg)
   msg = Plugin.formatMessage(self.name, self.version, msg)
-  tags = Plugin.formatTags(self.tags)
+  local tags = Plugin.formatTags(self.tags)
   print(eventString(eventType, msg, tags))
 end
 
@@ -808,6 +808,7 @@ function Plugin:run()
   self.dataSource:run(function (...) self:parseValues(...) end)
 end
 
+-- TODO: Use pcall?
 function Plugin:parseValues(...)
   local metrics = self:onParseValues(...)
   if not metrics then
@@ -1149,11 +1150,17 @@ local CommandOutputDataSource = DataSource:extend()
 --- CommandOutputDataSource constructor
 -- @paramas a table with path and args of the command to execute
 function CommandOutputDataSource:initialize(params)
+  -- TODO: Handle commands for each operating system.
   assert(params, 'CommandOuptutDataSource:new exect a non-nil params parameter')
   self.path = params.path
   self.args = params.args
   self.success_exitcode = params.success_exitcode or 0
   self.info = params.info
+  self.callback_on_errors = params.callback_on_errors
+end
+
+function CommandOutputDataSource:isSuccess(exitcode)
+  return tonumber(exitcode) == self.success_exitcode
 end
 
 --- Returns the output of execution of the command
@@ -1164,12 +1171,15 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
   proc.stdout:on('data', function (data) output = output .. data end)
   proc.stderr:on('data', function (data) output = output .. data end)
   proc:on('exit', function (exitcode)
-    if tonumber(exitcode) ~= self.success_exitcode then
-      self:emit('error', {message = 'Program terminated with exitcode \'' .. exitcode .. '\' and message \'' .. output .. '\''})
-      return
+    if not self:isSuccess(exitcode) then
+      self:emit('error', {message = 'Command terminated with exitcode \'' .. exitcode .. '\' and message \'' .. output .. '\''})
+      if not self.callback_on_errors then
+        return
+      end
     end
+    -- TODO: Add context for callback?
     if callback then
-    callback({info = self.info, output = output})
+    callback({context = self, info = self.info, output = output})
     end
   end)
 end
