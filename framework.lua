@@ -223,6 +223,86 @@ do
   framework.util.base64Decode = decode
 end
 
+do
+  local _pairs = pairs({ a = 0 }) -- get the generating function from pairs
+  local gpairs = function(t, key)
+  local value
+  local key, value = _pairs(t, key)
+    return key, key, value
+  end
+  local function iterator (obj, param, state)
+    if (type(obj) == 'table') then
+      if #obj > 0 then
+        return ipairs(obj)
+      else
+        return gpairs, obj, nil
+      end
+    elseif type(obj) == 'function' then
+      return obj, param, state
+    end
+    error(("object %s of type %s can not be iterated."):format(obj, type(obj))) 
+  end
+
+  local function call(func, state, ...)
+    if state == nil then
+      return nil
+    end
+    return state, func(...)
+  end
+  
+  local function _each(func, gen, param, state)
+    repeat
+      state = call(func, gen(param, state))
+    until state == nil
+  end
+  local function each(func, gen, param, state)
+    _each(func, iterator(gen, param, state))
+  end
+  framework.functional.each = each
+
+  local function toMap(gen, param, state)
+    local t = {}
+    each(function (k, v) 
+      v = v or k
+      t[k] = v 
+    end, gen, param, state)
+    return t
+  end
+  framework.functional.toMap = toMap
+
+  local table = require('table')
+  -- naive version of map
+  local function map(func, xs)
+    local t = {}
+    table.foreach(xs, function (i, v) 
+      --t[i] = func(v, i) 
+      table.insert(t, func(v))
+    end)  
+    return t
+  end
+  framework.functional.map = map
+ 
+  -- naive version of filter
+  local function filter(func, xs)
+    local t = {}
+    table.foreach(xs, function (i, v)
+      if func(v) then
+        table.insert(t, v)
+        --t[i] = v
+      end
+    end)
+    return t
+  end
+  -- naive version of reduce
+  local function reduce(func, acc, xs)
+    table.foreach(xs, function (i, v)
+      acc = func(acc, v)
+    end)
+    return acc
+  end
+  framework.functional.reduce = reduce
+end
+
 --- Trim blanks from the string
 function framework.string.trim(self)
   return string.match(self, '^%s*(.-)%s*$')
@@ -484,11 +564,6 @@ function framework.util.parseValue(x)
 end
 local parseValue = framework.util.parseValue
 
-function framework.functional.map(self, func)
-  local result = {}
-  table.foreach(self, function (i, v) table.insert(result, func(v)) end)
-  return result
-end
 local map = framework.functional.map
 
 -- TODO: Convert this to a generator
@@ -506,7 +581,7 @@ function framework.string.parseCSV(data, separator, comment, header)
     if notEmpty(v) then
       if not comment or not (charAt(v, 1) == comment) then
         local values = split(v, separator)
-        values = map(values, parseValue)
+        values = map(parseValue, values)
         if headers then
           table.insert(parsed, framework.table.create(headers, values))
         else
@@ -1224,4 +1299,5 @@ framework.PollerCollection = PollerCollection
 framework.MeterDataSource = MeterDataSource
 
 return framework
+
 
