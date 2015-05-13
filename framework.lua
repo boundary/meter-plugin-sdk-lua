@@ -28,9 +28,9 @@ local framework = {}
 local querystring = require('querystring')
 local boundary = require('boundary')
 
-framework.version = '0.9.1'
+framework.version = '0.9.2'
 framework.boundary = boundary
-framework.params = boundary.param
+framework.params = boundary.param or {}
 
 framework.string = {}
 framework.functional = {}
@@ -226,8 +226,8 @@ end
 do
   local _pairs = pairs({ a = 0 }) -- get the generating function from pairs
   local gpairs = function(t, key)
-  local value
-  local key, value = _pairs(t, key)
+    local value
+    key, value = _pairs(t, key)
     return key, key, value
   end
   local function iterator (obj, param, state)
@@ -270,7 +270,6 @@ do
   end
   framework.functional.toMap = toMap
 
-  local table = require('table')
   -- naive version of map
   local function map(func, xs)
     local t = {}
@@ -293,6 +292,7 @@ do
     end)
     return t
   end
+  framework.functional.filter = filter
   -- naive version of reduce
   local function reduce(func, acc, xs)
     table.foreach(xs, function (i, v)
@@ -484,6 +484,7 @@ function framework.string.jsonsplit(self)
   return outResults
 end
 
+-- TODO: To be composable we need to change this interface to gsplit(separator, data)
 function framework.string.gsplit(data, separator)
   local pos = 1
   local iter = function()
@@ -562,6 +563,7 @@ end
 function framework.util.parseValue(x)
   return tonumber(x) or (isEmpty(x) and 0) or tostring(x) or 0
 end
+
 local parseValue = framework.util.parseValue
 
 local map = framework.functional.map
@@ -711,10 +713,10 @@ end
 --- NetDataSource class.
 -- @type NetDataSource
 local NetDataSource = DataSource:extend()
-function NetDataSource:initialize(host, port)
-
+function NetDataSource:initialize(host, port, close_connection)
   self.host = host
   self.port = port
+  self.close_connection = close_connection or false 
 end
 
 function NetDataSource:onFetch(socket)
@@ -725,21 +727,36 @@ end
 -- @param context How calls this functions
 -- @func callback A callback that gets called when there is some data on the socket.
 function NetDataSource:fetch(context, callback)
-
-  local socket
-  socket = net.createConnection(self.port, self.host, function ()
-    self:onFetch(socket)
-
+  self:connect(function ()
+    self:onFetch(self.socket)
     if callback then
-      socket:once('data', function (data)
+      self.socket:once('data', function (data)
         callback(data)
-        socket:done()
+        if self.close_connection then
+          self:disconnect()
+        end
       end)
     else
-      socket:done()
+      if self.close_connection then
+        self:disconnect()
+      end
     end
   end)
-  socket:on('error', function (err) self:emit('error', 'Socket error: ' .. err.message) end)
+end
+
+function NetDataSource:disconnect()
+  self.socket:done()
+  self.socket = nil
+end
+
+function NetDataSource:connect(callback)
+  if self.socket then
+    callback()
+    return
+  end
+  
+  self.socket = net.createConnection(self.port, self.host, callback) 
+  self.socket:on('error', function (err) self:emit('error', 'Socket error: ' .. err.message) end)
 end
 
 framework.NetDataSource = NetDataSource
@@ -1276,6 +1293,7 @@ function MeterDataSource:fetch(context, callback)
     end
 
     local query_metric = parsed.result.query_metric
+    -- TODO: Return a generator
     if query_metric then
       for i = 1, table.getn(query_metric), 3 do
         table.insert(result, {metric = query_metric[i], value = query_metric[i+1], timestamp = query_metric[i+2]})
