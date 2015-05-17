@@ -876,6 +876,10 @@ function Plugin:printEvent(eventType, msg)
   print(eventString(eventType, msg, tags))
 end
 
+function Plugin:emitEvent(type, msg)
+  self:printEvent(type, msg)
+end
+
 function Plugin:_isPoller(poller)
   return poller.run
 end
