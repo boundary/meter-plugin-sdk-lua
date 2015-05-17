@@ -11,9 +11,6 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.-
---
---
---
 
 ---------------
 -- A Boundary Plugin Framework for easy development of custom Boundary.com plugins.
@@ -24,14 +21,12 @@
 -- @license Apache 2.0
 -- @copyright 2015 Boundary, Inc
 
-
 local Emitter = require('core').Emitter
 local Object = require('core').Object
 local timer = require('timer')
 local math = require('math')
 local string = require('string')
 local os = require('os')
-local io = require('io')
 local http = require('http')
 local https = require('https')
 local net = require('net')
