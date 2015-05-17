@@ -1,21 +1,32 @@
+-- Copyright 2015 Boundary, Inc.
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+--    http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.-
+
 ---------------
----- ## A Boundary Plugin Framework for Luvit.
-----
----- For easy development of custom Boundary.com plugins.
-----
----- [Github Page](https://github.com/GabrielNicolasAvellaneda/boundary-plugin-framework-lua)
-----
----- @author Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
----- @copyright Boundary.com 2015
----- @license Apache 2.0
----------------
+-- A Boundary Plugin Framework for easy development of custom Boundary.com plugins.
+--
+-- [https://github.com/boundary/boundary-plugin-framework-lua](https://github.com/boundary/boundary-plugin-framework-lua)
+-- @module Boundary Plugin Framework for LUA
+-- @author Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
+-- @license Apache 2.0
+-- @copyright 2015 Boundary, Inc
+
 local Emitter = require('core').Emitter
 local Object = require('core').Object
 local timer = require('timer')
 local math = require('math')
 local string = require('string')
 local os = require('os')
-local io = require('io')
 local http = require('http')
 local https = require('https')
 local net = require('net')
@@ -222,6 +233,7 @@ do
   framework.util.base64Encode = encode
   framework.util.base64Decode = decode
 end
+local base64Encode = framework.util.base64Encode
 
 do
   local _pairs = pairs({ a = 0 }) -- get the generating function from pairs
@@ -303,145 +315,60 @@ do
   framework.functional.reduce = reduce
 end
 
---- Trim blanks from the string
+
+--- String functions
+-- @section string
+
+--- Trim blanks from the string.
+-- @param self The string to trim
+-- @return The string with trimmed blanks
 function framework.string.trim(self)
   return string.match(self, '^%s*(.-)%s*$')
 end
+local trim = framework.string.trim
 
-function framework.string.charAt(self, i)
-  return string.sub(self, i, i)
+--- Returns the char from a string at the specified position. 
+-- @param str the string from were a char will be extracted. 
+-- @param pos the position in the string. Should be a numeric value greater or equal than 1.
+-- @return the char at the specified position. If the position does not exist in the string, nil is returned. 
+function framework.string.charAt(str, pos)
+  return string.sub(str, pos, pos)
 end
 local charAt = framework.string.charAt
 
-function framework.util.parseLinks(data)
-  local links = {}
-  for link in string.gmatch(data, '<a%s+h?ref=["\']([^"^\']+)["\'][^>]*>[^<]*</%s*a>') do
-    table.insert(links, link)
-  end
-
-  return links
-end
-
-function framework.util.isRelativeLink(link)
-  return not string.match(link, '^https?')
-end
-
-local trim = framework.string.trim
-function framework.util.absoluteLink(basePath, link)
-  return basePath .. trim(link)
-end
-
---- Wraps a function to calculate the time passed between the wrap and the function execution.
-function framework.util.timed(func, startTime)
-  startTime = startTime or os.time()
-  return function(...)
-    return os.time() - startTime, func(...)
-  end
-end
-
-function framework.util.isHttpSuccess(status)
-  return status >= 200 and status < 300
-end
-
-function framework.util.round(val, decimal)
-  assert(val, 'round expect a non-nil value')
-  if (decimal) then
-    return math.floor( (val * 10^decimal) + 0.5) / (10^decimal)
-  else
-    return math.floor(val+0.5)
-  end
-end
-
-function framework.util.currentTimestamp()
-  return os.time()
-end
-local currentTimestamp = framework.util.currentTimestamp
-
-function framework.util.megaBytesToBytes(mb)
-  return mb * 1024 * 1024
-end
-
-function framework.functional.partial(func, x)
-  return function (...)
-    return func(x, ...)
-  end
-end
-
-function framework.functional.identity(x)
-  return x
-end
-local identity = framework.functional.identity
-
-function framework.functional.compose(f, g)
-  return function(...)
-    return g(f(...))
-  end
-end
-
-function framework.table.get(key, map)
-  if type(map) ~= 'table' then
-    return nil
-  end
-  return map[key]
-end
-
-function framework.table.indexOf(self, value)
-  if type(self) ~= 'table' then
-    return nil
-  end
-  for i,v in ipairs(self) do
-    if value == v then
-      return i
-    end
-  end
-  return nil
-end
-
-function framework.table.keys(t)
-  local result = {}
-  for k,_ in pairs(t) do
-    table.insert(result, k)
-  end
-
-  return result
-end
-
-local clone
-clone = function (t)
-  if type(t) ~= 'table' then return t end
-
-  local meta = getmetatable(t)
-  local target = {}
-  for k,v in pairs(t) do
-    if type(v) == 'table' then
-      target[k] = clone(v)
-    else
-      target[k] = v
-    end
-  end
-  setmetatable(target, meta)
-  return target
-end
-framework.table.clone = clone
-
+--- Check if a string contains the specified pattern.
+-- @param pattern the pattern to look for.
+-- @param str the string to search from
+-- @return true if the pattern exist inside the string.
 function framework.string.contains(pattern, str)
   local s,_ = string.find(str, pattern)
   return s ~= nil
 end
 
+--- Replace placeholders with named keys inside a string.
+-- @param str the string that has placeholders to be replaced. In example "Hello, {name}"
+-- @param map a table with a list of key and values for replacement.
+-- @return a string with all the ocurrences of placedholders replaced.
 function framework.string.replace(str, map)
   for k, v in pairs(map) do
     str = str:gsub('{' .. k .. '}', v)
   end
   return str
 end
+local replace = framework.string.replace
 
+--- Escape special characters used by pattern matching functionality.
+-- @param str the string that will be escaped.
+-- @return a new string with all the special characters escaped.
 function framework.string.escape(str)
   local s, _ = string.gsub(str, '%.', '%%.')
   s, _ = string.gsub(s, '%-', '%%-')
   return s
 end
 
+--- Decode an URL encoded string
+-- @param str the URL encoded string
+-- @return a new string decoded
 function framework.string.urldecode(str)
   local char, gsub, tonumber = string.char, string.gsub, tonumber
   local function _(hex) return char(tonumber(hex, 16)) end
@@ -451,6 +378,9 @@ function framework.string.urldecode(str)
   return str
 end
 
+--- URL encode a string
+-- @param str the string that will be encoded
+-- @return a new string URL encoded
 function framework.string.urlencode(str)
   if str then
     str = string.gsub(str, '\n', '\r\n')
@@ -484,7 +414,7 @@ function framework.string.jsonsplit(self)
   return outResults
 end
 
--- TODO: To be composable we need to change this interface to gsplit(separator, data)
+--- TODO: To be composable we need to change this interface to gsplit(separator, data)
 function framework.string.gsplit(data, separator)
   local pos = 1
   local iter = function()
@@ -506,6 +436,10 @@ function framework.string.gsplit(data, separator)
 end
 local gsplit = framework.string.gsplit
 
+--- Split as an iterator
+-- @param data that will be splitted.
+-- @param separator a string or character for the split
+-- @func func a function to call for each splitted part of the string
 function framework.string.isplit(data, separator, func)
   for part in gsplit(data, separator) do
     func(part)
@@ -513,6 +447,10 @@ function framework.string.isplit(data, separator, func)
 end
 local isplit = framework.string.isplit
 
+-- Split a string into parts
+-- @param data the string to split
+-- @param separator a string or character that breaks each part of the string.
+-- @return a table with all the parts splitted from the string.
 function framework.string.split(data, separator)
   if not data then
     return nil
@@ -523,14 +461,6 @@ function framework.string.split(data, separator)
 end
 local split = framework.string.split
 
-function framework.util.pack(metric, value, timestamp, source)
-  return { metric = metric, value = value, timestamp = timestamp, source = source }
-end
-
-function framework.util.packValue(value, timestamp, source)
-  return { value = value, timestamp = timestamp, source = source }
-end
-
 --- Check if the string is empty. Before checking it will be trimmed to remove blank spaces.
 function framework.string.isEmpty(str)
   return (str == nil or framework.string.trim(str) == '')
@@ -538,11 +468,19 @@ end
 local isEmpty = framework.string.isEmpty
 
 --- If not empty returns the value. If is empty, an a default value was specified, it will return that value.
+-- @param str the string that will be checked for empty
+-- @param default a default value that will be returned if the string is empty
+-- @return str or default is str is an empty string.
 function framework.string.notEmpty(str, default)
   return not framework.string.isEmpty(str) and str or default
 end
 local notEmpty = framework.string.notEmpty
 
+--- Join two strings using a character
+-- @param s1 any string
+-- @param s2 any string
+-- @param char a character
+-- @return a new string with the join of s1 and s2 with character inbetween.
 function framework.string.concat(s1, s2, char)
   if isEmpty(s2) then
     return s1
@@ -550,6 +488,202 @@ function framework.string.concat(s1, s2, char)
   return s1 .. char .. s2
 end
 
+
+--- Utility functions.
+-- Various functions that helps with common tasks.
+-- @section util
+
+--- Parses anchor links from an HTML string
+-- @param html_str the html string from where links will be parsed.
+-- @return a table with extracted links
+function framework.util.parseLinks(html_str)
+  local links = {}
+  for link in string.gmatch(html_str, '<a%s+h?ref=["\']([^"^\']+)["\'][^>]*>[^<]*</%s*a>') do
+    table.insert(links, link)
+  end
+
+  return links
+end
+
+--- Creates an absolute link from a basePath and a relative link.
+-- @param basePath the base path to generate an absolute link.
+-- @param link a relative link
+-- @return A string that represents the absolute link.
+function framework.util.absoluteLink(basePath, link)
+  return basePath .. trim(link)
+end
+
+--- Check if the a link is a relative one.
+-- @param link the link to check
+-- @return true if the link is relative.  false otherwise.
+function framework.util.isRelativeLink(link)
+  return not string.match(link, '^https?')
+end
+
+--- Wraps a function to calculate the time passed between the wrap and the function execution.
+function framework.util.timed(func, startTime)
+  startTime = startTime or os.time()
+  return function(...)
+    return os.time() - startTime, func(...)
+  end
+end
+
+--- Check if an HTTP Status code is of a success kind.
+-- @param status the status code number
+-- @return true if status code is a success one.
+function framework.util.isHttpSuccess(status)
+  return status >= 200 and status < 300
+end
+
+--- Round a number by the to the specified decimal places.
+-- @param val the value that will be rounded
+-- @param decimal the number of decimal places
+-- @return the val rounded at decimal places
+function framework.util.round(val, decimal)
+  assert(val, 'round expect a non-nil value')
+  if (decimal) then
+    return math.floor( (val * 10^decimal) + 0.5) / (10^decimal)
+  else
+    return math.floor(val+0.5)
+  end
+end
+
+--- Return the current timestamp
+-- @return the current timestamp
+function framework.util.currentTimestamp()
+  return os.time()
+end
+local currentTimestamp = framework.util.currentTimestamp
+
+--- Convert megabytes to bytes.
+-- @param mb the number of megabytes
+-- @return the number of bytes that represent mb 
+function framework.util.megaBytesToBytes(mb)
+  return mb * 1024 * 1024
+end
+
+--- Pack a tuple that represent a metric into a table
+function framework.util.pack(metric, value, timestamp, source)
+  return { metric = metric, value = value, timestamp = timestamp, source = source }
+end
+
+--- Pack a value for a metric into a table
+function framework.util.packValue(value, timestamp, source)
+  return { value = value, timestamp = timestamp, source = source }
+end
+
+--- Create an auth for HTTP Basic Authentication
+function framework.util.auth(username, password)
+  return notEmpty(username) and notEmpty(password) and (username .. ':' .. password) or nil
+end
+
+-- Returns an string for a Boundary Meter event.
+-- @param type could be 'CRITICAL', 'ERROR', 'WARN', 'INFO'
+function framework.util.eventString(type, message, tags)
+  tags = tags or ''
+  return string.format('_bevent: %s |t:%s|tags:%s', message, type, tags)
+end
+local eventString = framework.util.eventString
+
+
+--- Functional functions
+-- @section functional 
+
+--- Return the partial application of a function.
+-- @param func a function that will be partially applied.
+-- @param x the parameter to partially apply.
+-- @return A new function with the application of the x parameter.
+function framework.functional.partial(func, x)
+  return function (...)
+    return func(x, ...)
+  end
+end
+
+--- Represents the identity function  
+-- @param x any value
+-- @return x
+function framework.functional.identity(x)
+  return x
+end
+local identity = framework.functional.identity
+
+--- Compose to functions g(f(x))
+-- @param f any function
+-- @param g any function
+-- @return A new function that is the composition of f and g
+function framework.functional.compose(f, g)
+  return function(...)
+    return g(f(...))
+  end
+end
+
+--- Table functions
+-- @section table
+
+--- Get the value at the specified key for a table
+-- @param key the key for indexing the table
+-- @param t a any table
+-- @return the value at the specified key. If t is not a table nil will be returned.
+function framework.table.get(key, t)
+  if type(t) ~= 'table' then
+    return nil
+  end
+  return t[key]
+end
+
+--- Get the index in the table for the specified value.
+-- @param self any table
+-- @param value the value to look for
+-- @return a number that represent the index of value in the table. If the value does not exist, or t is not a table, nil will be returned.
+function framework.table.indexOf(self, value)
+  if type(self) ~= 'table' then
+    return nil
+  end
+  for i,v in ipairs(self) do
+    if value == v then
+      return i
+    end
+  end
+  return nil
+end
+
+--- Get all the keys from the  table.
+-- @param t any table
+-- @return a table with all the keys of t
+function framework.table.keys(t)
+  local result = {}
+  for k,_ in pairs(t) do
+    table.insert(result, k)
+  end
+
+  return result
+end
+
+--- Get a deep copy of a table
+-- @param t a table to be cloned
+-- @return a new table that is the copy of t.
+local clone
+clone = function (t)
+  if type(t) ~= 'table' then return t end
+
+  local meta = getmetatable(t)
+  local target = {}
+  for k,v in pairs(t) do
+    if type(v) == 'table' then
+      target[k] = clone(v)
+    else
+      target[k] = v
+    end
+  end
+  setmetatable(target, meta)
+  return target
+end
+framework.table.clone = clone
+
+--- Creates a table from a list of keys and values
+-- @param keys a list of keys
+-- @param values a list of kayes
+-- @return a new table with the corresponding keys and values
 function framework.table.create(keys, values)
   local result = {}
   for i, k in ipairs(keys) do
@@ -560,10 +694,29 @@ function framework.table.create(keys, values)
   return result
 end
 
+--- Merge to tables
+-- @param t1 any table
+-- @param t2 any table
+-- @return return a new table with t1 and t2 merged.
+function framework.table.merge(t1, t2)
+  local output = clone(t1)
+  for k, v in pairs(t2) do
+    if type(k) == 'number' then
+      table.insert(output, v)
+    else
+      output[k] = v
+    end
+  end
+  return output
+end
+local merge = framework.table.merge
+
+--- Try to coerce a number or at least to a string.
+-- @param x the value that will be converted.
+-- @return return a number if x can be parsed, 0 if is an empty string or a string if is not convertible to a number.
 function framework.util.parseValue(x)
   return tonumber(x) or (isEmpty(x) and 0) or tostring(x) or 0
 end
-
 local parseValue = framework.util.parseValue
 
 local map = framework.functional.map
@@ -595,18 +748,6 @@ function framework.string.parseCSV(data, separator, comment, header)
   return parsed
 end
 
-function framework.util.auth(username, password)
-  return notEmpty(username) and notEmpty(password) and (username .. ':' .. password) or nil
-end
-
--- Returns an string for a Boundary Meter event.
--- @param type could be 'CRITICAL', 'ERROR', 'WARN', 'INFO'
-function framework.util.eventString(type, message, tags)
-  tags = tags or ''
-  return string.format('_bevent: %s |t:%s|tags:%s', message, type, tags)
-end
-local eventString = framework.util.eventString
-
 -- You can call framework.string() to export all functions to the string table to the global table for easy access.
 local function exportable(t)
   setmetatable(t, {
@@ -631,13 +772,21 @@ exportable(framework.table)
 exportable(framework.http)
 
 --- Cache class.
+-- Work as a cache of values
 -- @type Cache
 local Cache = Object:extend()
+
+--- Cache constructor.
+-- @name Cache:new
+-- @param func a function that provides a default value for an inexisting key.
 function Cache:initialize(func)
   self.func = func
   self.cache = {}
 end
 
+--- Get a cached value or create a default one.
+-- @param key the key associated with the cached value.
+-- @return return the value associated with the speciifed key or create a new default value using the constructor function.
 function Cache:get(key)
   assert(key, 'Cache:get key must be non-nil')
   local result = self.cache[key]
@@ -653,10 +802,11 @@ framework.Cache = Cache
 --- DataSource class.
 -- @type DataSource
 local DataSource = Emitter:extend()
---- DataSource is the base class for any DataSource you want to implement. By default accepts a function/closure that will be called each fetch call.
+--- DataSource is the base class for any DataSource. By default accepts a function/closure that will be called each fetch call.
 framework.DataSource = DataSource
 --- DataSource constructor.
 -- @name DataSource:new
+-- @param func a function that will be called on each fetch request.
 function DataSource:initialize(func)
   self.func = func
 end
@@ -679,6 +829,7 @@ end
 --- Fetch data from the datasource. This is an abstract method.
 -- @param context Context information, this can be the caller or another object that you want to set.
 -- @param callback A function that will be called when the fetch operation is done. If there are another DataSource chained, this call will be made when the ultimate DataSource in the chain is done.
+-- @param params Additional parameters that will be send to the internal DataSource functioan.
 function DataSource:fetch(context, callback, params)
 
   self:onFetch(context, callback, params)
@@ -713,6 +864,12 @@ end
 --- NetDataSource class.
 -- @type NetDataSource
 local NetDataSource = DataSource:extend()
+
+--- NetDataSource constructor
+-- @param host the host to connect
+-- @param port the port to connect
+-- @param close_connection if true, the connection will be closed on each fetch operation.
+-- @return a new instance of NetDataSource 
 function NetDataSource:initialize(host, port, close_connection)
   self.host = host
   self.port = port
@@ -724,7 +881,7 @@ function NetDataSource:onFetch(socket)
 end
 
 --- Fetch data from the configured host and port
--- @param context How calls this functions
+-- @param context A context object that can be used by the fetch operation.
 -- @func callback A callback that gets called when there is some data on the socket.
 function NetDataSource:fetch(context, callback)
   self:connect(function ()
@@ -744,11 +901,14 @@ function NetDataSource:fetch(context, callback)
   end)
 end
 
+--- Disconnect the internal socket 
 function NetDataSource:disconnect()
   self.socket:done()
   self.socket = nil
 end
 
+--- Connect to the initialized host and port and call the callback function on success.
+-- @func callback a callback to run on a successfull connection. If called for an already open connection, the callback will be executed immediatelly.
 function NetDataSource:connect(callback)
   if self.socket then
     callback()
@@ -844,20 +1004,6 @@ function Plugin:printCritical(msg)
   self:printEvent('critical', msg)
 end
 
--- TODO: Add a unit test
-function framework.table.merge(t1, t2)
-  local output = clone(t1)
-  for k, v in pairs(t2) do
-    if type(k) == 'number' then
-      table.insert(output, v)
-    else
-      output[k] = v
-    end
-  end
-  return output
-end
-local merge = framework.table.merge
-
 function Plugin.formatMessage(name, version, msg)
   return string.format('%s version %s: %s', name, version, msg)
 end
@@ -876,13 +1022,19 @@ function Plugin:printEvent(eventType, msg)
   print(eventString(eventType, msg, tags))
 end
 
+--- Emit an event to the Boundary platform. 
+-- @type a string that represent the type of the event. It can be 'info', 'warning', 'critical', 'error'.
+-- @param msg an string message to send
+function Plugin:emitEvent(type, msg)
+  self:printEvent(type, msg)
+end
+
 function Plugin:_isPoller(poller)
   return poller.run
 end
 
 --- Called when the Plugin detect and error in one of his components.
 -- @param err the error emitted by one of the component that failed.
-
 function Plugin:error(err)
   local msg
   if type(err) == 'table' and err.message then
@@ -895,7 +1047,6 @@ end
 
 --- Run the plugin and start polling from the configured DataSource
 function Plugin:run()
-
   self:printInfo('Up')
   self.dataSource:run(function (...) self:parseValues(...) end)
 end
@@ -918,6 +1069,8 @@ function Plugin:report(metrics)
   self:onReport(metrics)
 end
 
+--- Called by the framework when there are some metrics to send to Boundary platform
+-- @param metrics a table that represent the metrics to send
 function Plugin:onReport(metrics)
   -- metrics can be { metric = value }
   -- or {metric = {value, source}}
@@ -955,7 +1108,7 @@ end
 
 --- Called by the framework before formating the metric output.
 -- @string metric the metric name
--- @param value the value to format
+-- @number value the value to format
 -- @string source the source to report for the metric
 -- @param timestamp the time the metric was retrieved
 -- You can override this on your plugin instance.
@@ -963,107 +1116,12 @@ function Plugin:onFormat(metric, value, source, timestamp)
   return string.format('%s %f %s %s', metric, value, source, timestamp)
 end
 
-local CommandPlugin = Plugin:extend()
-framework.CommandPlugin = CommandPlugin
-
-function CommandPlugin:initialize(params)
-  Plugin.initialize(self, params)
-
-  if not params.command then
-    error('params.command undefined. You need to define the command to excetue.')
-  end
-  self.command = params.command
-end
-
-function CommandPlugin:execCommand(callback)
-  local proc = io.popen(self.command, 'r')
-  local output = proc:read("*a")
-  proc:close()
-  if callback then
-    callback(output)
-  end
-end
-
-function CommandPlugin:onPoll()
-  self:execCommand(function (output) self.parseCommandOutput(self, output) end)
-end
-
-function CommandPlugin:parseCommandOutput(output)
-  local metrics = self:onParseCommandOutput(output)
-  self:report(metrics)
-end
-
-function CommandPlugin:onParseCommandOutput(output)
-  print(output)
-  return {}
-end
-
-local NetPlugin = Plugin:extend()
-framework.NetPlugin = NetPlugin
-
-local HttpPlugin = Plugin:extend()
-framework.HttpPlugin = HttpPlugin
-
-function HttpPlugin:initialize(params)
-  Plugin.initialize(self, params)
-  self.reqOptions = {
-    host = params.host,
-    port = params.port,
-    path = params.path
-  }
-end
-
-local PollingPlugin = Plugin:extend()
-
-framework.PollingPlugin = PollingPlugin
-
-function HttpPlugin:makeRequest(reqOptions, successCallback)
-  local req = http.request(reqOptions, function (res)
-    local data = ''
-
-    res:on('data', function (chunk)
-      data = data .. chunk
-      successCallback(data)
-      -- TODO: Verify when data its complete or when we need to use de end
-    end)
-
-    res:on('error', function (err)
-      local msg = 'Error while receiving a response: ' .. err.message
-      self:error(msg)
-    end)
-
-  end)
-  req:on('error', function (err)
-    local msg = 'Error while sending a request: ' .. err.message
-    self:error(msg)
-  end)
-
-  req:done()
-end
-
-function HttpPlugin:onPoll()
-  self:makeRequest(self.reqOptions, function (data)
-    self:parseResponse(data)
-  end)
-end
-
-function HttpPlugin:parseResponse(data)
-  local metrics = self:onParseResponse(data)
-  self:report(metrics)
-end
-
-function HttpPlugin:onParseResponse(data)
-  -- To be overriden on class instance
-  print(data)
-  return {}
-end
-
 --- Acumulator Class
 -- @type Accumulator
 local Accumulator = Emitter:extend()
 
 --- Accumulator constructor.
--- Keep track of values so we can return the delta for accumulated metrics.
+-- Track values and return the delta for accumulated metrics.
 -- @name Accumulator:new
 function Accumulator:initialize()
   self.map = {}
@@ -1106,16 +1164,26 @@ end
 
 framework.Accumulator = Accumulator
 
+--- A Collection of DataSourcePoller
+-- @type PollerCollection
 local PollerCollection = Emitter:extend()
+
+--- PollerCollection constructor
+-- @param[opt] pollers a list of poller to initially add to this collection.
 function PollerCollection:initialize(pollers)
   self.pollers = pollers or {}
+  -- TODO: Configure propagation of errors.
 end
 
+--- Add a poller to the collection
+-- @param poller a DataSourcePoller to add to the collection
 function PollerCollection:add(poller)
   table.insert(self.pollers, poller)
   poller:propagate('error', self)
 end
 
+--- Run all the DataSourcePollers in the collection.
+-- @func callback a callback function that will be passed to the DataSourcePollers.
 function PollerCollection:run(callback)
   if self.running then
     return
@@ -1130,6 +1198,11 @@ end
 --- WebRequestDataSource Class
 -- @type WebRequestDataSource
 local WebRequestDataSource = DataSource:extend()
+
+--- WebRequestDataSource
+-- @name WebRequestDataSource:new
+-- @param params a table with the configuraiton parameters. 
+-- TODO: Document params options
 function WebRequestDataSource:initialize(params)
   local options = params
   if type(params) == 'string' then
@@ -1142,9 +1215,7 @@ function WebRequestDataSource:initialize(params)
   self.info = options.meta
 end
 
-local base64Encode = framework.util.base64Encode
-
-local replace = framework.string.replace
+--- Fetch data from the initialized url
 function WebRequestDataSource:fetch(context, callback, params)
   assert(callback, 'WebRequestDataSource:fetch: callback is required')
 
@@ -1235,12 +1306,12 @@ function RandomDataSource:initialize(minValue, maxValue)
   end)
 end
 
---- CommandOutputDataSource class
+--- CommandOutputDataSource. A DataSource for parsing the output of command line programs. 
 -- @type CommandOutputDataSource
 local CommandOutputDataSource = DataSource:extend()
 
 --- CommandOutputDataSource constructor
--- @paramas a table with path and args of the command to execute
+-- @param params a table with path and args of the command to execute
 function CommandOutputDataSource:initialize(params)
   -- TODO: Handle commands for each operating system.
   assert(params, 'CommandOuptutDataSource:new exect a non-nil params parameter')
@@ -1251,6 +1322,9 @@ function CommandOutputDataSource:initialize(params)
   self.callback_on_errors = params.callback_on_errors
 end
 
+--- Returns true if is a success exitcode.
+-- @param exitcode the exit code to check for success
+-- @return true if exitcode is success 
 function CommandOutputDataSource:isSuccess(exitcode)
   return tonumber(exitcode) == self.success_exitcode
 end
@@ -1276,7 +1350,13 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
   end)
 end
 
+
+--- MeterDataSource class.
+-- @type MeterDataSource
 local MeterDataSource = NetDataSource:extend()
+
+--- MeterDatasource to get data from the meter. The meter has various metrics already for use inside plugins.
+-- @name MeterDataSource:new
 function MeterDataSource:initialize(host, port)
   host = host or '127.0.0.1'
   port = port or 9192
@@ -1304,6 +1384,8 @@ function MeterDataSource:fetch(context, callback)
   NetDataSource.fetch(self, context, parse)
 end
 
+--- Returns a json formatted string for query a metric
+-- @param params the option for query a metric
 function MeterDataSource:queryMetricCommand(params)
   params = params or { match = ''}
   return '{"jsonrpc":"2.0","method":"query_metric","id":1,"params":' .. json.stringify(params) .. '}\n'
@@ -1317,5 +1399,3 @@ framework.PollerCollection = PollerCollection
 framework.MeterDataSource = MeterDataSource
 
 return framework
-
-
