@@ -1204,7 +1204,7 @@ local WebRequestDataSource = DataSource:extend()
 -- @param params a table with the configuraiton parameters. 
 -- TODO: Document params options
 function WebRequestDataSource:initialize(params)
-  local options = params
+  local options = params or {}
   if type(params) == 'string' then
     options = _url.parse(params)
   end
