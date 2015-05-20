@@ -1,0 +1,63 @@
+{
+    "description": "Example plugin that shows all of the options for paramSchema",
+    "command_lua": "boundary-meter init.lua",
+    "postExtract_lua" : "",
+    "metrics" : [
+                 "SOME_METRIC_IDENTIFIER",
+                 "OTHER_METRIC_IDENTIFIER"
+                ],
+    "paramArray": { "itemTitle": [ "string" ], "schemaTitle": "Example Dialog Configuration" },
+    "paramSchema": [
+        {
+            "title": "String Type",
+            "name": "string",
+            "description": "A simple text field. Can have a default value and be required.",
+            "type": "string",
+            "default": "hello",
+            "required": true
+        },
+        {
+            "title" : "Password Type",
+            "name" : "password",
+            "description" : "A simple text field that obsecures the text.",
+            "type" : "password"
+        },
+        {
+            "title": "Boolean Type",
+            "name": "boolean",
+            "description": "A checkbox field. Can have a default value and be required",
+            "type": "boolean",
+            "default": false,
+            "required": false
+        },
+        {
+            "title": "Enum Type",
+            "name": "enum",
+            "description": "A dropdown list of enumerated values. Can have a default and be required",
+            "type" : { "enum" : [["Red", "red"], ["Green", "green"], ["Blue","blue"]] },
+            "default" : "red",
+            "required": true
+        },
+        {
+            "title": "String Array Type",
+            "name": "string_array",
+            "description": "",
+            "type" : "array",
+            "items" : { "type" : "string" }
+        },
+        {
+            "title": "Boolean Array Type",
+            "name": "array",
+            "description": "",
+            "type" : "array",
+            "items" : { "type" : "boolean" }
+        },
+        {
+            "title": "Enum Array Type",
+            "name": "array",
+            "description": "",
+            "type" : "array",
+            "items" : { "type" : "enum" }
+        }
+    ]
+}
