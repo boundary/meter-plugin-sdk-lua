@@ -1,0 +1,53 @@
+Boundary {Name} Plugin
+==============================
+
+{Some introductory text that explain the purpose of the this plugin or how it works.
+
+This plugin grabs metrics from some where it is started and parses the data to be able to integrate into boundary.}
+
+## Prerequisites
+
+### Supported OS
+
+|     OS    | Linux | Windows | SmartOS | OS X |
+|:----------|:-----:|:-------:|:-------:|:----:|
+| Supported |   v   |    v    |    v    |  v   |
+
+### Boundary Meter versions v4.0 or later
+
+- To install new meter go to Settings->Installation or [see instructons](https://help.boundary.com/hc/en-us/sections/200634331-Installation).
+- To upgrade the meter to the latest version - [see instructons](https://help.boundary.com/hc/en-us/articles/201573102-Upgrading-the-Boundary-Meter).
+
+## Plugin Setup
+
+### {Service name} configuration
+
+{Description of the procedure that the user needs to do to allow this plugin to grab metrics from the target service.}
+
+### Plugin Configuration Fields
+
+|Field Name    |Description                                              |
+|:-------------|:--------------------------------------------------------|
+|pollInterval (ms) | How often should we poll for metrics |
+| source | The source that will be published for each metric |
+| {anotherField} | {A short field description} |
+
+## Metrics Collected
+
+| Metric Name | Metric Identifier | Description                                                                |
+|:--------------------------------|:------------------------------------------------------------------------|
+| {Name for the metric} | {ID_FOR_THE_METRIC} | {Short description for the metric} |
+| {Name for other metric} | {ID_FOR_OTHER_METRIC} | {Short description for other metric} |
+
+## Dashboards
+Here are the list of dashboards that are created when the plugin is installed.
+
+|Dashboard|Description                                     |
+|:--------|:-----------------------------------------------|
+|{Name for Dashboard}   | {A short description for this dashboard} |
+
+## References
+
+{Some reference documentation links that explain in more detail the metrics collected or the configuration procedure for the service to expose the metrics.
+- [Link description] (http://link.com/stats)
+}
