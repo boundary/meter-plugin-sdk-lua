@@ -2,10 +2,16 @@
     "description": "Example plugin that shows all of the options for paramSchema",
     "command_lua": "boundary-meter init.lua",
     "postExtract_lua" : "",
+    "icon" : "icon.png",
     "metrics" : [
                  "SOME_METRIC_IDENTIFIER",
                  "OTHER_METRIC_IDENTIFIER"
                 ],
+    "dashboards" : [
+        { "name" : "Dashboard Name",
+          "layout" : "d-w=2&d-h=1&d-pad=5&d-bg=none&d-g-SOME_METRIC_IDENTIFIER=0-0-1-1&d-g-OTHER_METRIC_IDENTIFIER=1-0-1-1"
+        }
+    ],
     "paramArray": { "itemTitle": [ "string" ], "schemaTitle": "Example Dialog Configuration" },
     "paramSchema": [
         {
