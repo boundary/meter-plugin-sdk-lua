@@ -562,6 +562,13 @@ function framework.util.megaBytesToBytes(mb)
   return mb * 1024 * 1024
 end
 
+--- Represent a number as a percentage
+-- @param number the number to represent as a percentage
+-- @return number/100
+function framework.util.percentage(number)
+  return number/100
+end
+
 --- Pack a tuple that represent a metric into a table
 function framework.util.pack(metric, value, timestamp, source)
   return { metric = metric, value = value, timestamp = timestamp, source = source }
