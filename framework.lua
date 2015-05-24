@@ -1087,7 +1087,7 @@ function Plugin:onReport(metrics)
   for metric, v in pairs(metrics) do
     -- { { metric, value .. }, { metric, value .. } }
     if type(metric) == 'number' then
-      print(self:format(v.metric, v.value, v.source, v.timestamp or currentTimestamp()))
+      print(self:format(v.metric, v.value, notEmpty(v.source, self.source), v.timestamp or currentTimestamp()))
     elseif type(v) ~= 'table' then
       print(self:format(metric, v, self.source, currentTimestamp()))
     elseif type(v[1]) ~= 'table' and v.value then
