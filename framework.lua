@@ -638,6 +638,18 @@ function framework.table.get(key, t)
   return t[key]
 end
 
+--- Find a value inside a table
+-- @param a predicate function that test the items of the table
+-- @return the first item in the table that satisfy the test condition
+function framework.table.find(func, t)
+  for i, v in pairs(t) do
+    if func(v, i, t) then
+      return v, i 
+    end
+  end
+  return nil
+end
+
 --- Get the number of elements of a table
 -- @param t a table
 -- @return the number of items from the table
