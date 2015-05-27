@@ -638,6 +638,24 @@ function framework.table.get(key, t)
   return t[key]
 end
 
+--- Get the number of elements of a table
+-- @param t a table
+-- @return the number of items from the table
+function framework.table.count(t)
+  local count = 0
+  for _ in pairs(t) do
+    count = count + 1
+  end
+  return count
+end
+
+--- Get returns true if there is any element in the table.
+-- @param t a table
+-- @return true if there is any element in the table, false otherwise
+function framework.table.hasAny(t)
+  return next(t) ~= nil
+end
+
 --- Get the index in the table for the specified value.
 -- @param self any table
 -- @param value the value to look for
