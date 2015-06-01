@@ -7,5 +7,14 @@
     "displayName" : "{What should be displayed in the UI title}",
     "displayNameShort" : "{20 char max - the title for small windows}",
     "unit" : "{number, percent, duration, bytecount}"
+  },
+  "{AppName Capitalized}_{Next Metric Name Capitalized}": {
+    "isDisabled" : 0,
+    "defaultAggregate" : "{AVG, MAX, MIN, SUM}",
+    "defaultResolution" : "{Should match pollInterval}",
+    "description" : "{What does this metric show}",
+    "displayName" : "{What should be displayed in the UI title}",
+    "displayNameShort" : "{20 char max - the title for small windows}",
+    "unit" : "{number, percent, duration, bytecount}"
   }
 }
