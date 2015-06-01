@@ -43,6 +43,7 @@ framework.version = '0.9.2'
 framework.boundary = boundary
 framework.params = boundary.param or {}
 framework.plugin_params = boundary.plugin_params or {}
+local plugin_params = framework.plugin_params
 
 framework.string = {}
 framework.functional = {}
