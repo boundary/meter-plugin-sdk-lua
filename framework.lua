@@ -27,6 +27,7 @@ local timer = require('timer')
 local math = require('math')
 local string = require('string')
 local os = require('os')
+local fs = require('fs')
 local http = require('http')
 local https = require('https')
 local net = require('net')
@@ -41,8 +42,9 @@ local boundary = require('boundary')
 
 framework.version = '0.9.2'
 framework.boundary = boundary
-framework.params = boundary.param or {}
-framework.plugin_params = boundary.plugin_params or {}
+framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
+framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
+framework.metrics = boundary.metrics or json.parse(fs.readFileSync('metrics.json')) or {}
 local plugin_params = framework.plugin_params
 
 framework.string = {}
