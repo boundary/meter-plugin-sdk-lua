@@ -970,6 +970,7 @@ local DataSourcePoller = Emitter:extend()
 -- @name DataSourcePoller:new
 function DataSourcePoller:initialize(pollInterval, dataSource)
   self.pollInterval = pollInterval
+  if self.pollInterval < 500 then self.pollInterval = self.pollInterval * 1000 end
   self.dataSource = dataSource
   dataSource:propagate('error', self)
 end
