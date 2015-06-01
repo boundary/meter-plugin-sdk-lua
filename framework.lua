@@ -663,6 +663,25 @@ function framework.table.count(t)
   return count
 end
 
+function framework.util.sum(a, b)
+  return a + b
+end
+local sum = framework.util.sum 
+
+--- Get the mean value of the elements from a table
+-- @param t a table 
+-- @return the mean value 
+local reduce = framework.functional.reduce
+function framework.util.mean(t)
+  local count = table.getn(t) 
+  if count == 0 then
+    return 0
+  end
+  local sum = reduce(sum, 0, t) 
+  return sum/count
+end
+
+
 --- Get returns true if there is any element in the table.
 -- @param t a table
 -- @return true if there is any element in the table, false otherwise
