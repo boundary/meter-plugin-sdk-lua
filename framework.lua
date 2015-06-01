@@ -42,6 +42,7 @@ local boundary = require('boundary')
 framework.version = '0.9.2'
 framework.boundary = boundary
 framework.params = boundary.param or {}
+framework.plugin_params = boundary.plugin_params or {}
 
 framework.string = {}
 framework.functional = {}
@@ -1009,6 +1010,8 @@ function Plugin:initialize(params, dataSource)
   assert(dataSource, 'Plugin:new dataSource is required.')
 
   local pollInterval = params.pollInterval or 1000
+  if pollInterval < 500 then pollInterval = pollInterval * 1000 end
+
   if not Plugin:_isPoller(dataSource) then
     self.dataSource = DataSourcePoller:new(pollInterval, dataSource)
     self.dataSource:propagate('error', self)
@@ -1016,9 +1019,15 @@ function Plugin:initialize(params, dataSource)
     self.dataSource = dataSource
   end
   self.source = notEmpty(params.source, os.hostname())
-  self.version = params.version or '1.0'
-  self.name = params.name or 'Boundary Plugin'
-  self.tags = params.tags or ''
+  if (plugin_params) then
+    self.version = notEmpty(plugin_params.version, notEmpty(params.version, '0.0'))
+    self.name = notEmpty(plugin_params.name, notEmpty(params.name, 'Boundary Plugin'))
+    self.tags = notEmpty(plugin_params.tags, notEmpty(params.tags, ''))
+  else
+    self.version = notEmpty(params.version, '0.0')
+    self.name = notEmpty(params.name, 'Boundary Plugin')
+    self.tags = notEmpty(params.tags, '')
+  end
 
   dataSource:propagate('error', self)
 
