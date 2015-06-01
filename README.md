@@ -3,12 +3,62 @@ A starting point to make a library that can easy the development of Boundary Plu
 
 ### Example 1 - Generating random metric values
 
+#### plugin.json
+```
+{
+  "name"            : "Boundary Demo Plugin",
+  "version"         : "1.0",
+  "tags"            : "applicationA",
+  "description"     : "This is a sample boundary plugin generating random metric values",
+  "icon"            : "icon.png",
+  "command"         : "boundary-meter init.lua",
+  "command_lua"     : "boundary-meter init.lua",
+  "postExtract"     : "",
+  "postExtract_lua" : "",
+  "ignore"          : "",
+
+  "metrics"     : [
+    "BOUNDARY_SAMPLE_METRIC"
+  ],
+
+  "dashboards"  : [
+    {
+      "name"        : "Nginx Plus Summary",
+      "layout"      : "d-w=1&d-h=1&d-pad=5&d-bg=none&d-g-BOUNDARY_SAMPLE_METRIC=1-1-1-1"
+    }
+  ],
+
+  "paramSchema" : [
+    {
+     "title"        : "Poll Interval",
+      "name"        : "pollInterval",
+      "description" : "The Poll Interval in milliseconds. Ex. 5000",
+      "type"        : "number",
+      "default"     : 5000,
+      "required"    : false
+    },
+    {
+      "title"       : "Maximum Value",
+      "name"        : "maxValue",
+      "description" : "The upper bound of the random numbers being generated",
+      "type"        : "number",
+      "default"     : 5
+    },
+    {
+      "title"       : "Minimum Value",
+      "name"        : "minValue",
+      "description" : "The lower bound of the random numbers being generated",
+      "type"        : "number"
+    }
+}
+```
+
 #### param.json
 ```
 {
-  pollInterval = 1000,
-  minValue     = 0,
-  maxValue     = 100
+  "pollInterval"    : 1000,
+  "minValue"        : 0,
+  "maxValue"        : 100
 }
 ```
 
@@ -20,8 +70,12 @@ local Plugin = framework.Plugin
 local RandomDataSource = framework.RandomDataSource
 
 local params = framework.params
-params.name = 'Boundary Demo Plugin'
-params.version = '1.0'
+-- For compatability with lua versions prior to 4.1.2
+if framework.plugin_params.name == nil then
+  params.name = 'Boundary Demo Plugin'
+  params.version = '1.0'
+  params.tags = 'applicationA'
+end
 params.minValue = params.minValue or 1
 params.maxValue = params.maxValue or 100
 
