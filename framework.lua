@@ -1311,9 +1311,10 @@ function WebRequestDataSource:fetch(context, callback, params)
     if self.wait_for_end then
       res:on('end', function ()
         local exec_time = os.time() - start_time
-        --callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
-        self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
-
+        success, error = pcall(function () self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
+        if not success then
+          self:emit('error', error)
+        end
         res:destroy()
       end)
     else
