@@ -1039,6 +1039,7 @@ function Plugin:initialize(params, dataSource)
     self.dataSource:propagate('error', self)
   else
     self.dataSource = dataSource
+    dataSource:propagate('error', self)
   end
   self.source = notEmpty(params.source, os.hostname())
   if (plugin_params) then
@@ -1050,8 +1051,6 @@ function Plugin:initialize(params, dataSource)
     self.name = notEmpty(params.name, 'Boundary Plugin')
     self.tags = notEmpty(params.tags, '')
   end
-
-  dataSource:propagate('error', self)
 
   self:on('error', function (err) self:error(err) end)
 end
