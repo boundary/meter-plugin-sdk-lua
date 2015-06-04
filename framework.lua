@@ -1123,13 +1123,13 @@ function Plugin:run()
   self.dataSource:run(function (...) self:parseValues(...) end)
 end
 
--- TODO: Use pcall?
 function Plugin:parseValues(...)
-  local metrics = self:onParseValues(...)
-  if not metrics then
-    return
+  local success, result = pcall(self.onParseValues, self, unpack({...}))
+  if not success then
+    self:emitEvent('critical', result)
+  elseif result then
+    self:report(result)
   end
-  self:report(metrics)
 end
 
 function Plugin:onParseValues(...)
