@@ -1039,6 +1039,7 @@ function Plugin:initialize(params, dataSource)
     self.dataSource:propagate('error', self)
   else
     self.dataSource = dataSource
+    dataSource:propagate('error', self)
   end
   self.source = notEmpty(params.source, os.hostname())
   if (plugin_params) then
@@ -1050,8 +1051,6 @@ function Plugin:initialize(params, dataSource)
     self.name = notEmpty(params.name, 'Boundary Plugin')
     self.tags = notEmpty(params.tags, '')
   end
-
-  dataSource:propagate('error', self)
 
   self:on('error', function (err) self:error(err) end)
 end
@@ -1123,13 +1122,13 @@ function Plugin:run()
   self.dataSource:run(function (...) self:parseValues(...) end)
 end
 
--- TODO: Use pcall?
 function Plugin:parseValues(...)
-  local metrics = self:onParseValues(...)
-  if not metrics then
-    return
+  local success, result = pcall(self.onParseValues, self, unpack({...}))
+  if not success then
+    self:emitEvent('critical', result)
+  elseif result then
+    self:report(result)
   end
-  self:report(metrics)
 end
 
 function Plugin:onParseValues(...)
@@ -1311,9 +1310,10 @@ function WebRequestDataSource:fetch(context, callback, params)
     if self.wait_for_end then
       res:on('end', function ()
         local exec_time = os.time() - start_time
-        --callback(buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
-        self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
-
+        success, error = pcall(function () self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
+        if not success then
+          self:emit('error', error)
+        end
         res:destroy()
       end)
     else
