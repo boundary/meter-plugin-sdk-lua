@@ -1467,6 +1467,25 @@ function MeterDataSource:queryMetricCommand(params)
   return '{"jsonrpc":"2.0","method":"query_metric","id":1,"params":' .. json.stringify(params) .. '}\n'
 end
 
+local FileReaderDataSource = DataSource:extend()
+function FileReaderDataSource:initialize(path)
+  self.path = path 
+end
+
+function FileReaderDataSource:fetch(context, func, params)
+  if not fs.existsSync(self.path) then
+    self:emit('error', 'The "' .. self.path .. '" was not found.')
+  else 
+    local success, result = pcall(fs.readFileSync, self.path)
+	  if not success then
+      self:emit('error', failure)
+    else
+      func(result)
+    end
+  end
+end
+
+framework.FileReaderDataSource = FileReaderDataSource
 framework.CommandOutputDataSource = CommandOutputDataSource
 framework.RandomDataSource = RandomDataSource
 framework.DataSourcePoller = DataSourcePoller
