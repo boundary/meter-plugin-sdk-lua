@@ -1182,6 +1182,7 @@ end
 -- @param timestamp the time the metric was retrieved
 -- You can override this on your plugin instance.
 function Plugin:onFormat(metric, value, source, timestamp)
+  source = string.gsub(source, '%s', '_')
   if timestamp then
     return string.format('%s %f %s %s', metric, value, source, timestamp)
   else
