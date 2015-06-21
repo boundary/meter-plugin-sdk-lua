@@ -40,7 +40,7 @@ local framework = {}
 local querystring = require('querystring')
 local boundary = require('boundary')
 
-framework.version = '0.9.2'
+framework.version = '0.9.3'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -491,7 +491,6 @@ function framework.string.concat(s1, s2, char)
   end
   return s1 .. char .. s2
 end
-
 
 --- Utility functions.
 -- Various functions that helps with common tasks.
@@ -1413,7 +1412,7 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
   proc.stderr:on('data', function (data) output = output .. data end)
   proc:on('exit', function (exitcode)
     if not self:isSuccess(exitcode) then
-      self:emit('error', {message = 'Command terminated with exitcode \'' .. exitcode .. '\' and message \'' .. output .. '\''})
+      self:emit('error', {message = 'Command terminated with exitcode \'' .. exitcode .. '\' and message \'' .. string.gsub(output, '\n', ' ') .. '\''})
       if not self.callback_on_errors then
         return
       end
