@@ -1407,20 +1407,36 @@ end
 function CommandOutputDataSource:fetch(context, callback, parser, params)
   local output = ''
   local proc = childprocess.spawn(self.path, self.args)
+  local code, ended
   proc:propagate('error', self)
   proc.stdout:on('data', function (data) output = output .. data end)
   proc.stderr:on('data', function (data) output = output .. data end)
-  proc:on('exit', function (exitcode)
-    if not self:isSuccess(exitcode) then
-      self:emit('error', {message = 'Command terminated with exitcode \'' .. exitcode .. '\' and message \'' .. string.gsub(output, '\n', ' ') .. '\''})
+
+  local function done()
+    if not code or not ended then
+      return
+    end
+
+    if not self:isSuccess(code) then
+      self:emit('error', {message = 'Command terminated with exitcode \'' .. code .. '\' and message \'' .. string.gsub(output, '\n', ' ') .. '\''})
       if not self.callback_on_errors then
         return
       end
     end
-    -- TODO: Add context for callback?
     if callback then
-    callback({context = self, info = self.info, output = output})
+      process.nextTick(function ()
+        callback({context = self, info = self.info, output = output})
+      end)
     end
+  end
+
+  proc.stdout:on('end', function ()
+    ended = true
+    done()
+  end)
+  proc:on('exit', function (exitcode)
+    code = exitcode
+    done()
   end)
 end
 
@@ -1439,7 +1455,11 @@ end
 
 function MeterDataSource:fetch(context, callback)
   local parse = function (value)
-    local parsed = json.parse(value)
+    local success, parsed = pcall(json.parse, value)
+    if not success then
+      context:emitEvent('critical', string.gsub(parsed, '\n', ' ')) 
+      return
+    end
     local result = {}
     if parsed.result.status ~= 'Ok' then
       self:error('Error with status: ' .. parsed.result.status)
