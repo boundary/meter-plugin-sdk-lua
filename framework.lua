@@ -968,7 +968,7 @@ end
 --- Connect to the initialized host and port and call the callback function on success.
 -- @func callback a callback to run on a successfull connection. If called for an already open connection, the callback will be executed immediatelly.
 function NetDataSource:connect(callback)
-  if self.socket then
+  if self.socket and not self.socket.destroyed then
     callback()
     return
   end
