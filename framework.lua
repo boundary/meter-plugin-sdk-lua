@@ -668,19 +668,24 @@ function framework.util.add(a, b)
 end
 local add = framework.util.add 
 
+local reduce = framework.functional.reduce
+
+function framework.util.sum(t)
+  return reduce(add, 0, t)
+end
+local sum = framework.util.sum
+
 --- Get the mean value of the elements from a table
 -- @param t a table 
 -- @return the mean value 
-local reduce = framework.functional.reduce
 function framework.util.mean(t)
   local count = table.getn(t) 
   if count == 0 then
     return 0
   end
-  local sum = reduce(add, 0, t) 
-  return sum/count
+  local s = sum(add, 0, t) 
+  return s/count
 end
-
 
 --- Get returns true if there is any element in the table.
 -- @param t a table
