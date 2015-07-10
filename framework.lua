@@ -925,6 +925,33 @@ function DataSource:processResult(context, callback, ...)
   end
 end
 
+--- CachedDataSource class
+-- @type CachedDataSource
+local CachedDataSource = DataSource:extend()
+
+--- CachedDataSource allows to cache DataSource fetch calls and refresh  
+framework.CachedDataSource = CachedDataSource
+function CachedDataSource:initialize(ds, refresh_by)
+  self.ds = ds
+  self.refresh_by = refresh_by
+  self.expiration = nil
+end
+
+--- Fetch from the provided DataSource or return the cached value
+function CachedDataSource:fetch(context, callback, params)
+  local now = os.time()
+  if not self.expiration or now >= self.expiration then
+    self.expiration = now + self.refresh_by
+    local cache = function (result)
+      self.cached = result
+      callback(result)
+    end
+    self.ds:fetch(context, cache, params)
+  else
+    callback(self.cached)
+  end
+end
+
 --- NetDataSource class.
 -- @type NetDataSource
 local NetDataSource = DataSource:extend()
