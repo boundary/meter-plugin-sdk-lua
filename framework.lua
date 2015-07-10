@@ -39,6 +39,7 @@ local _url = require('url')
 local framework = {}
 local querystring = require('querystring')
 local boundary = require('boundary')
+local io = require('io')
 
 framework.version = '0.9.3'
 framework.boundary = boundary
@@ -924,6 +925,33 @@ function DataSource:processResult(context, callback, ...)
   end
 end
 
+--- CachedDataSource class
+-- @type CachedDataSource
+local CachedDataSource = DataSource:extend()
+
+--- CachedDataSource allows to cache DataSource fetch calls and refresh  
+framework.CachedDataSource = CachedDataSource
+function CachedDataSource:initialize(ds, refresh_by)
+  self.ds = ds
+  self.refresh_by = refresh_by
+  self.expiration = nil
+end
+
+--- Fetch from the provided DataSource or return the cached value
+function CachedDataSource:fetch(context, callback, params)
+  local now = os.time()
+  if not self.expiration or now >= self.expiration then
+    self.expiration = now + self.refresh_by
+    local cache = function (result)
+      self.cached = result
+      callback(result)
+    end
+    self.ds:fetch(context, cache, params)
+  else
+    callback(self.cached)
+  end
+end
+
 --- NetDataSource class.
 -- @type NetDataSource
 local NetDataSource = DataSource:extend()
@@ -1399,6 +1427,7 @@ function CommandOutputDataSource:initialize(params)
   self.success_exitcode = params.success_exitcode or 0
   self.info = params.info
   self.callback_on_errors = params.callback_on_errors
+  self.use_popen = params.use_popen
 end
 
 --- Returns true if is a success exitcode.
@@ -1411,38 +1440,50 @@ end
 --- Returns the output of execution of the command
 function CommandOutputDataSource:fetch(context, callback, parser, params)
   local output = ''
-  local proc = childprocess.spawn(self.path, self.args)
-  local code, ended
-  proc:propagate('error', self)
-  proc.stdout:on('data', function (data) output = output .. data end)
-  proc.stderr:on('data', function (data) output = output .. data end)
 
-  local function done()
-    if not code or not ended then
+  if self.use_popen then
+    local proc, err = io.popen(self.path .. " " .. table.concat(self.args, ' '), 'r')
+    if not proc then
+      self:emit('error', err)
       return
     end
+    output = proc:read('*all')
+    local result = {proc:close()}
+    callback({context = self, info = self.info, output = output})
+  else
+    local proc = childprocess.spawn(self.path, self.args)
+    local code, ended
+    proc:propagate('error', self)
+    proc.stdout:on('data', function (data) output = output .. data end)
+    proc.stderr:on('data', function (data) output = output .. data end)
 
-    if not self:isSuccess(code) then
-      self:emit('error', {message = 'Command terminated with exitcode \'' .. code .. '\' and message \'' .. string.gsub(output, '\n', ' ') .. '\''})
-      if not self.callback_on_errors then
+    local function done()
+      if not code or not ended then
         return
       end
-    end
-    if callback then
-      process.nextTick(function ()
-        callback({context = self, info = self.info, output = output})
-      end)
-    end
-  end
 
-  proc.stdout:on('end', function ()
-    ended = true
-    done()
-  end)
-  proc:on('exit', function (exitcode)
-    code = exitcode
-    done()
-  end)
+      if not self:isSuccess(code) then
+        self:emit('error', {message = 'Command terminated with exitcode \'' .. code .. '\' and message \'' .. string.gsub(output, '\n', ' ') .. '\''})
+        if not self.callback_on_errors then
+          return
+        end
+      end
+      if callback then
+        process.nextTick(function ()
+          callback({context = self, info = self.info, output = output})
+        end)
+      end
+    end
+
+    proc.stdout:on('end', function ()
+      ended = true
+      done()
+    end)
+    proc:on('exit', function (exitcode)
+      code = exitcode
+      done()
+    end)
+  end
 end
 
 
