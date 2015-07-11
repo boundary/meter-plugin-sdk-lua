@@ -935,6 +935,7 @@ function CachedDataSource:initialize(ds, refresh_by)
   self.ds = ds
   self.refresh_by = refresh_by
   self.expiration = nil
+  ds:propagate('error', self)
 end
 
 --- Fetch from the provided DataSource or return the cached value
