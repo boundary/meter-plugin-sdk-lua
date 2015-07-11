@@ -944,11 +944,11 @@ function CachedDataSource:fetch(context, callback, params)
     self.expiration = now + self.refresh_by
     local cache = function (result)
       self.cached = result
-      callback(result)
+      self:processResult(context, callback, result)
     end
     self.ds:fetch(context, cache, params)
   else
-    callback(self.cached)
+    self:processResult(context, callback, self.cached)
   end
 end
 
