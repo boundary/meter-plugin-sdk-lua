@@ -941,8 +941,8 @@ end
 --- Fetch from the provided DataSource or return the cached value
 function CachedDataSource:fetch(context, callback, params)
   local now = os.time()
-  if not self.expiration or now >= self.expiration then
-    self.expiration = now + self.refresh_by
+  if not self.expiration or (now >= self.expiration and self.refresh_by) then
+    self.expiration = now + (self.refresh_by or 0)
     local cache = function (result)
       self.cached = result
       self:processResult(context, callback, result)
