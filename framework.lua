@@ -1422,7 +1422,7 @@ local CommandOutputDataSource = DataSource:extend()
 -- @param params a table with path and args of the command to execute
 function CommandOutputDataSource:initialize(params)
   -- TODO: Handle commands for each operating system.
-  assert(params, 'CommandOuptutDataSource:new exect a non-nil params parameter')
+  assert(params, 'CommandOuptutDataSource:new expect a non-nil params parameter')
   self.path = params.path
   self.args = params.args
   self.success_exitcode = params.success_exitcode or 0
