@@ -941,8 +941,8 @@ end
 --- Fetch from the provided DataSource or return the cached value
 function CachedDataSource:fetch(context, callback, params)
   local now = os.time()
-  if not self.expiration or now >= self.expiration then
-    self.expiration = now + self.refresh_by
+  if not self.expiration or (now >= self.expiration and self.refresh_by) then
+    self.expiration = now + (self.refresh_by or 0)
     local cache = function (result)
       self.cached = result
       self:processResult(context, callback, result)
@@ -1422,7 +1422,7 @@ local CommandOutputDataSource = DataSource:extend()
 -- @param params a table with path and args of the command to execute
 function CommandOutputDataSource:initialize(params)
   -- TODO: Handle commands for each operating system.
-  assert(params, 'CommandOuptutDataSource:new exect a non-nil params parameter')
+  assert(params, 'CommandOuptutDataSource:new expect a non-nil params parameter')
   self.path = params.path
   self.args = params.args
   self.success_exitcode = params.success_exitcode or 0
