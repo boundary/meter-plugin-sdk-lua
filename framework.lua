@@ -1501,7 +1501,6 @@ function MeterDataSource:initialize(host, port)
 end
 
 function MeterDataSource:fetch(context, callback)
-  p(context)
   local parse = function (value)
     local success, parsed = pcall(json.parse, value)
     if not success then
