@@ -1501,15 +1501,16 @@ function MeterDataSource:initialize(host, port)
 end
 
 function MeterDataSource:fetch(context, callback)
+  p(context)
   local parse = function (value)
     local success, parsed = pcall(json.parse, value)
     if not success then
-      context:emitEvent('critical', string.gsub(parsed, '\n', ' ')) 
+      self:emit('error', string.gsub(parsed, '\n', ' ')) 
       return
     end
     local result = {}
     if parsed.result.status ~= 'Ok' then
-      self:error('Error with status: ' .. parsed.result.status)
+      self:emit('error', 'Error with status: ' .. parsed.result.status)
       return
     end
 
