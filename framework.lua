@@ -1149,7 +1149,7 @@ end
 
 --- Run the plugin and start polling from the configured DataSource
 function Plugin:run()
-  self:printInfo(self.source .. ' Status', self.source, self.source, 'Up')
+  self:emitEvent('info', self.source .. ' Status', self.source, self.source, 'Up')
   self.dataSource:run(function (...) self:parseValues(...) end)
 end
 
