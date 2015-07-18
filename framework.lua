@@ -1149,7 +1149,7 @@ end
 
 --- Run the plugin and start polling from the configured DataSource
 function Plugin:run()
-  self:printInfo(self.source .. ' Status', self.source, self.source, 'Up')
+  self:emitEvent('info', self.source .. ' Status', self.source, self.source, 'Up')
   self.dataSource:run(function (...) self:parseValues(...) end)
 end
 
@@ -1504,12 +1504,12 @@ function MeterDataSource:fetch(context, callback)
   local parse = function (value)
     local success, parsed = pcall(json.parse, value)
     if not success then
-      context:emitEvent('critical', string.gsub(parsed, '\n', ' ')) 
+      self:emit('error', string.gsub(parsed, '\n', ' ')) 
       return
     end
     local result = {}
     if parsed.result.status ~= 'Ok' then
-      self:error('Error with status: ' .. parsed.result.status)
+      self:emit('error', 'Error with status: ' .. parsed.result.status)
       return
     end
 
