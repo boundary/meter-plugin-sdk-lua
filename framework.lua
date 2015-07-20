@@ -40,8 +40,9 @@ local framework = {}
 local querystring = require('querystring')
 local boundary = require('boundary')
 local io = require('io')
+local hrtime = require('uv').Process.hrtime
 
-framework.version = '0.9.3'
+framework.version = '0.9.4'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -1326,7 +1327,7 @@ end
 function WebRequestDataSource:fetch(context, callback, params)
   assert(callback, 'WebRequestDataSource:fetch: callback is required')
 
-  local start_time = os.time()
+  local start_time = hrtime()
   local options = clone(self.options)
 
   -- Replace variables
@@ -1341,8 +1342,9 @@ function WebRequestDataSource:fetch(context, callback, params)
   local success = function (res)
     if self.wait_for_end then
       res:on('end', function ()
-        local exec_time = os.time() - start_time
-        success, error = pcall(function () self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
+        local exec_time = hrtime() - start_time
+        success, error = pcall(function () 
+          self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
         if not success then
           self:emit('error', error)
         end
@@ -1350,7 +1352,7 @@ function WebRequestDataSource:fetch(context, callback, params)
       end)
     else
       res:once('data', function (data)
-        local exec_time = os.time() - start_time
+        local exec_time = hrtime() - start_time
         buffer = buffer .. data
         if not self.wait_for_end then
           self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
