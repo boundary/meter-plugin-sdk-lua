@@ -586,6 +586,10 @@ function framework.util.packValue(value, timestamp, source)
   return { value = value, timestamp = timestamp, source = source }
 end
 
+function framework.util.ipack(metrics, ...)
+  table.insert(metrics, framework.util.pack(...))  
+end
+
 --- Create an auth for HTTP Basic Authentication
 function framework.util.auth(username, password)
   return notEmpty(username) and notEmpty(password) and (username .. ':' .. password) or nil
