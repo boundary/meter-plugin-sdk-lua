@@ -668,7 +668,7 @@ function framework.table.count(t)
   return count
 end
 
-local function framework.table.toSet(t)
+function framework.table.toSet(t)
   if not t then return nil end
 
   local result = {}
