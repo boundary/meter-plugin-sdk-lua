@@ -704,6 +704,11 @@ function framework.util.mean(t)
   return s/count
 end
 
+function framework.util.parseJson(body)
+  return pcall(json.parse, body)
+end
+local parseJson = framework.util.parseJson
+
 --- Get returns true if there is any element in the table.
 -- @param t a table
 -- @return true if there is any element in the table, false otherwise
@@ -1519,7 +1524,7 @@ end
 
 function MeterDataSource:fetch(context, callback)
   local parse = function (value)
-    local success, parsed = pcall(json.parse, value)
+    local success, parsed = parseJson(value)
     if not success then
       self:emit('error', string.gsub(parsed, '\n', ' ')) 
       return
