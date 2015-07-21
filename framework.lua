@@ -575,7 +575,10 @@ end
 
 --- Pack a tuple that represent a metric into a table
 function framework.util.pack(metric, value, timestamp, source)
-  return { metric = metric, value = value, timestamp = timestamp, source = source }
+  if value then
+    return { metric = metric, value = value, timestamp = timestamp, source = source }
+  end
+  return nil
 end
 
 --- Pack a value for a metric into a table
