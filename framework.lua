@@ -575,12 +575,19 @@ end
 
 --- Pack a tuple that represent a metric into a table
 function framework.util.pack(metric, value, timestamp, source)
-  return { metric = metric, value = value, timestamp = timestamp, source = source }
+  if value then
+    return { metric = metric, value = value, timestamp = timestamp, source = source }
+  end
+  return nil
 end
 
 --- Pack a value for a metric into a table
 function framework.util.packValue(value, timestamp, source)
   return { value = value, timestamp = timestamp, source = source }
+end
+
+function framework.util.ipack(metrics, ...)
+  table.insert(metrics, framework.util.pack(...))  
 end
 
 --- Create an auth for HTTP Basic Authentication
@@ -665,6 +672,18 @@ function framework.table.count(t)
   return count
 end
 
+function framework.table.toSet(t)
+  if not t then return nil end
+
+  local result = {}
+  local n = 0
+  for _, v in pairs(t) do
+    n = n + 1  
+    result[v] = true
+  end
+  return n > 0 and result or nil
+end
+
 function framework.util.add(a, b)
   return a + b
 end
@@ -688,6 +707,18 @@ function framework.util.mean(t)
   local s = sum(add, 0, t) 
   return s/count
 end
+
+function framework.util.ratio(x, y)
+  if y and tonumber(y) > 0 then
+    return x / y
+  end
+  return 0
+end
+
+function framework.util.parseJson(body)
+  return pcall(json.parse, body)
+end
+local parseJson = framework.util.parseJson
 
 --- Get returns true if there is any element in the table.
 -- @param t a table
@@ -1504,7 +1535,7 @@ end
 
 function MeterDataSource:fetch(context, callback)
   local parse = function (value)
-    local success, parsed = pcall(json.parse, value)
+    local success, parsed = parseJson(value)
     if not success then
       self:emit('error', string.gsub(parsed, '\n', ' ')) 
       return
