@@ -668,6 +668,18 @@ function framework.table.count(t)
   return count
 end
 
+local function framework.table.toSet(t)
+  if not t then return nil end
+
+  local result = {}
+  local n = 0
+  for _, v in pairs(t) do
+    n = n + 1  
+    result[v] = true
+  end
+  return n > 0 and result or nil
+end
+
 function framework.util.add(a, b)
   return a + b
 end
