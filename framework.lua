@@ -704,6 +704,13 @@ function framework.util.mean(t)
   return s/count
 end
 
+function framework.util.ratio(x, y)
+  if y and tonumber(y) > 0 then
+    return x / y
+  end
+  return 0
+end
+
 function framework.util.parseJson(body)
   return pcall(json.parse, body)
 end
