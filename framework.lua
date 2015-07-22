@@ -678,8 +678,11 @@ function framework.table.toSet(t)
   local result = {}
   local n = 0
   for _, v in pairs(t) do
-    n = n + 1  
-    result[v] = true
+    v = trim(v)
+    if v ~= '' then
+      n = n + 1  
+      result[v] = true
+    end
   end
   return n > 0 and result or nil
 end
