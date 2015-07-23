@@ -42,7 +42,7 @@ local boundary = require('boundary')
 local io = require('io')
 local hrtime = require('uv').Process.hrtime
 
-framework.version = '0.9.4'
+framework.version = '0.9.5'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
