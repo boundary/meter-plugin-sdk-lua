@@ -1041,7 +1041,8 @@ function NetDataSource:connect(callback)
     callback()
     return
   end
-  
+  assert(notEmpty(self.port), 'You must specify a port to connect to.')
+  assert(notEmpty(self.host), 'You must specify a host to connect to.')
   self.socket = net.createConnection(self.port, self.host, callback) 
   self.socket:on('error', function (err) self:emit('error', 'Socket error: ' .. err.message) end)
 end
@@ -1064,7 +1065,12 @@ function DataSourcePoller:initialize(pollInterval, dataSource)
 end
 
 function DataSourcePoller:_poll(callback)
-  self.dataSource:fetch(self, callback)
+  local success, err = pcall(function () 
+    self.dataSource:fetch(self, callback)
+  end)
+  if not success then
+    self:emit('error', err) 
+  end
   timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
 end
 
