@@ -42,7 +42,7 @@ local boundary = require('boundary')
 local io = require('io')
 local hrtime = require('uv').Process.hrtime
 
-framework.version = '0.9.4'
+framework.version = '0.9.5'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -128,16 +128,6 @@ end
 
 _url.parse = framework.util.parseUrl
 
--- Propagate the event to another emitter.
--- TODO: Will be removed when migrating to luvit 2.0.x
-function Emitter:propagate(eventName, target)
-  if (target and target.emit) then
-    self:on(eventName, function (...) target:emit(eventName, ...) end)
-    return target
-  end
-
-  return self
-end
 
 do
   local encode_alphabet = {
@@ -603,7 +593,6 @@ function framework.util.eventString(type, message, tags)
 end
 local eventString = framework.util.eventString
 
-
 --- Functional functions
 -- @section functional 
 
@@ -620,10 +609,20 @@ end
 --- Represents the identity function  
 -- @param x any value
 -- @return x
-function framework.functional.identity(x)
-  return x
+function framework.functional.identity(...)
+  return ... 
 end
 local identity = framework.functional.identity
+
+-- Propagate the event to another emitter.
+function Emitter:propagate(eventName, target, transform)
+  if (target and target.emit) then
+    transform = transform or identity
+    self:on(eventName, function (...) target:emit(eventName, transform(...)) end)
+    return target
+  end
+  return self
+end
 
 --- Compose to functions g(f(x))
 -- @param f any function
@@ -1041,7 +1040,8 @@ function NetDataSource:connect(callback)
     callback()
     return
   end
-  
+  assert(notEmpty(self.port), 'You must specify a port to connect to.')
+  assert(notEmpty(self.host), 'You must specify a host to connect to.')
   self.socket = net.createConnection(self.port, self.host, callback) 
   self.socket:on('error', function (err) self:emit('error', 'Socket error: ' .. err.message) end)
 end
@@ -1064,7 +1064,12 @@ function DataSourcePoller:initialize(pollInterval, dataSource)
 end
 
 function DataSourcePoller:_poll(callback)
-  self.dataSource:fetch(self, callback)
+  local success, err = pcall(function () 
+    self.dataSource:fetch(self, callback)
+  end)
+  if not success then
+    self:emit('error', err) 
+  end
   timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
 end
 
@@ -1121,8 +1126,8 @@ function Plugin:initialize(params, dataSource)
   self:on('error', function (err) self:error(err) end)
 end
 
-function Plugin:printError(title, host, source, err)
-  self:printEvent('error', title, host, source, err)
+function Plugin:printError(title, host, source, msg)
+  self:printEvent('error', title, host, source, msg)
 end
 
 function Plugin:printInfo(title, host, source, msg)
@@ -1173,13 +1178,19 @@ end
 --- Called when the Plugin detect and error in one of his components.
 -- @param err the error emitted by one of the component that failed.
 function Plugin:error(err)
+  err = self:onError(err)
   local msg
   if type(err) == 'table' and err.message then
     msg = err.message
   else
     msg = tostring(err)
   end
-  self:printError(self.source .. ' Error', self.source, self.source, msg)
+  local source = err.source or self.source
+  self:printError(self.source .. ' Error', self.source, source, msg)
+end
+
+function Plugin:onError(err)
+  return err 
 end
 
 --- Run the plugin and start polling from the configured DataSource
@@ -1304,6 +1315,11 @@ function Accumulator:resetAll()
   self.map = {}
 end
 
+-- The object instance can be used as a function call that calls accumulate.
+Accumulator.meta.__call = function (t, ...) 
+  return t:accumulate(...)  
+end
+
 framework.Accumulator = Accumulator
 
 --- A Collection of DataSourcePoller
@@ -1357,6 +1373,10 @@ function WebRequestDataSource:initialize(params)
   self.info = options.meta
 end
 
+function WebRequestDataSource:onError(...)
+  return ...
+end
+
 --- Fetch data from the initialized url
 function WebRequestDataSource:fetch(context, callback, params)
   assert(callback, 'WebRequestDataSource:fetch: callback is required')
@@ -1378,7 +1398,7 @@ function WebRequestDataSource:fetch(context, callback, params)
       res:on('end', function ()
         local exec_time = hrtime() - start_time
         success, error = pcall(function () 
-          self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
+          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
         if not success then
           self:emit('error', error)
         end
@@ -1389,7 +1409,7 @@ function WebRequestDataSource:fetch(context, callback, params)
         local exec_time = hrtime() - start_time
         buffer = buffer .. data
         if not self.wait_for_end then
-          self:processResult(context, callback, buffer, {info = self.info, response_time = exec_time, status_code = res.statusCode})
+          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode})
           res:destroy()
         end
       end)
@@ -1429,7 +1449,11 @@ function WebRequestDataSource:fetch(context, callback, params)
     req:write(body)
   end
 
-  req:propagate('error', self)
+  req:propagate('error', self, function (err)
+    err.context = self
+    err.params = params
+    return err
+  end)
   req:done()
 end
 
