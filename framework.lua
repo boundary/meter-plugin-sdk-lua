@@ -128,16 +128,6 @@ end
 
 _url.parse = framework.util.parseUrl
 
--- Propagate the event to another emitter.
--- TODO: Will be removed when migrating to luvit 2.0.x
-function Emitter:propagate(eventName, target)
-  if (target and target.emit) then
-    self:on(eventName, function (...) target:emit(eventName, ...) end)
-    return target
-  end
-
-  return self
-end
 
 do
   local encode_alphabet = {
@@ -603,7 +593,6 @@ function framework.util.eventString(type, message, tags)
 end
 local eventString = framework.util.eventString
 
-
 --- Functional functions
 -- @section functional 
 
@@ -620,10 +609,20 @@ end
 --- Represents the identity function  
 -- @param x any value
 -- @return x
-function framework.functional.identity(x)
-  return x
+function framework.functional.identity(...)
+  return ... 
 end
 local identity = framework.functional.identity
+
+-- Propagate the event to another emitter.
+function Emitter:propagate(eventName, target, transform)
+  if (target and target.emit) then
+    transform = transform or identity
+    self:on(eventName, function (...) target:emit(eventName, transform(...)) end)
+    return target
+  end
+  return self
+end
 
 --- Compose to functions g(f(x))
 -- @param f any function
