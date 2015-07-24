@@ -1310,6 +1310,11 @@ function Accumulator:resetAll()
   self.map = {}
 end
 
+-- The object instance can be used as a function call that calls accumulate.
+Accumulator.meta.__call = function (t, ...) 
+  return t:accumulate(...)  
+end
+
 framework.Accumulator = Accumulator
 
 --- A Collection of DataSourcePoller
