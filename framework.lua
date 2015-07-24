@@ -1126,8 +1126,8 @@ function Plugin:initialize(params, dataSource)
   self:on('error', function (err) self:error(err) end)
 end
 
-function Plugin:printError(title, host, source, err)
-  self:printEvent('error', title, host, source, err)
+function Plugin:printError(title, host, source, msg)
+  self:printEvent('error', title, host, source, msg)
 end
 
 function Plugin:printInfo(title, host, source, msg)
@@ -1178,13 +1178,19 @@ end
 --- Called when the Plugin detect and error in one of his components.
 -- @param err the error emitted by one of the component that failed.
 function Plugin:error(err)
+  err = self:onError(err)
   local msg
   if type(err) == 'table' and err.message then
     msg = err.message
   else
     msg = tostring(err)
   end
-  self:printError(self.source .. ' Error', self.source, self.source, msg)
+  local source = err.source or self.source
+  self:printError(self.source .. ' Error', self.source, source, msg)
+end
+
+function Plugin:onError(err)
+  return err 
 end
 
 --- Run the plugin and start polling from the configured DataSource
@@ -1365,6 +1371,10 @@ function WebRequestDataSource:initialize(params)
 
   self.options = options
   self.info = options.meta
+end
+
+function WebRequestDataSource:onError(...)
+  return ...
 end
 
 --- Fetch data from the initialized url
