@@ -1439,7 +1439,11 @@ function WebRequestDataSource:fetch(context, callback, params)
     req:write(body)
   end
 
-  req:propagate('error', self)
+  req:propagate('error', self, function (err)
+    err.context = self
+    err.params = params
+    return err
+  end)
   req:done()
 end
 
