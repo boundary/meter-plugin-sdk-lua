@@ -42,7 +42,7 @@ local boundary = require('boundary')
 local io = require('io')
 local hrtime = require('uv').Process.hrtime
 
-framework.version = '0.9.5'
+framework.version = '0.9.6'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -1524,7 +1524,7 @@ function CommandOutputDataSource:fetch(context, callback, parser, params)
       end
 
       if not self:isSuccess(code) then
-        self:emit('error', {message = 'Command terminated with exitcode \'' .. code .. '\' and message \'' .. string.gsub(output, '\n', ' ') .. '\''})
+        self:emit('error', {message = 'Command terminated with exitcode \'' .. code .. '\' and message \'' .. string.gsub(output, '\r?\n', ' ') .. '\''})
         if not self.callback_on_errors then
           return
         end
