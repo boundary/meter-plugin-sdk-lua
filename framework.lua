@@ -42,7 +42,7 @@ local boundary = require('boundary')
 local io = require('io')
 local hrtime = require('uv').Process.hrtime
 
-framework.version = '0.9.6'
+framework.version = '0.9.7'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -1014,7 +1014,7 @@ function NetDataSource:fetch(context, callback)
     self:onFetch(self.socket)
     if callback then
       self.socket:once('data', function (data)
-        callback(data)
+        callback(data, {context = self})
         if self.close_connection then
           self:disconnect()
         end
