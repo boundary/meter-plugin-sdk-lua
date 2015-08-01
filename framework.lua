@@ -1014,7 +1014,7 @@ function NetDataSource:fetch(context, callback)
     self:onFetch(self.socket)
     if callback then
       self.socket:once('data', function (data)
-        callback(data)
+        callback(data, {context = self})
         if self.close_connection then
           self:disconnect()
         end
