@@ -42,7 +42,15 @@ local boundary = require('boundary')
 local io = require('io')
 local hrtime = require('uv').Process.hrtime
 
-framework.version = '0.9.7'
+local callable = function (class, func)
+  class.meta.__call = func 
+end
+
+local factory = function (t, ...)
+  return t:new(...)
+end
+
+framework.version = '0.9.8'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -1316,9 +1324,7 @@ function Accumulator:resetAll()
 end
 
 -- The object instance can be used as a function call that calls accumulate.
-Accumulator.meta.__call = function (t, ...) 
-  return t:accumulate(...)  
-end
+callable(Accumulator, function (t, ...) return t:accumulate(...) end)
 
 framework.Accumulator = Accumulator
 
