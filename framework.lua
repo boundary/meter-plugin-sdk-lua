@@ -46,8 +46,11 @@ local callable = function (class, func)
   class.meta.__call = func 
 end
 
-local factory = function (t, ...)
-  return t:new(...)
+local factory = function (class)
+  local mt = getmetatable(class)
+  mt.__call = function (t, ...)
+    return t:new(...)
+  end
 end
 
 framework.version = '0.9.8'
@@ -881,6 +884,7 @@ exportable(framework.http)
 -- Work as a cache of values
 -- @type Cache
 local Cache = Object:extend()
+factory(Cache, factory)
 
 --- Cache constructor.
 -- @name Cache:new
@@ -1059,6 +1063,7 @@ framework.NetDataSource = NetDataSource
 --- DataSourcePoller class
 -- @type DataSourcePoller
 local DataSourcePoller = Emitter:extend()
+factory(DataSourcePoller)
 
 --- DataSourcePoller constructor.
 -- DataSourcePoller Polls a DataSource at the specified interval and calls a callback when there is some data available.
@@ -1096,6 +1101,7 @@ end
 -- @type Plugin
 local Plugin = Emitter:extend()
 framework.Plugin = Plugin
+factory(Plugin)
 
 --- Plugin constructor.
 -- A base plugin implementation that accept a dataSource and polls periodically for new data and format the output so the boundary meter can collect the metrics.
@@ -1280,6 +1286,7 @@ end
 --- Acumulator Class
 -- @type Accumulator
 local Accumulator = Emitter:extend()
+factory(Accumulator)
 
 --- Accumulator constructor.
 -- Track values and return the delta for accumulated metrics.
@@ -1331,6 +1338,7 @@ framework.Accumulator = Accumulator
 --- A Collection of DataSourcePoller
 -- @type PollerCollection
 local PollerCollection = Emitter:extend()
+factory(PollerCollection)
 
 --- PollerCollection constructor
 -- @param[opt] pollers a list of poller to initially add to this collection.
