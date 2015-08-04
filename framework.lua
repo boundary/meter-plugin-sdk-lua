@@ -53,7 +53,7 @@ local factory = function (class)
   end
 end
 
-framework.version = '0.9.8'
+framework.version = '0.9.9'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -70,7 +70,7 @@ framework.http = {}
 function framework.util.parseUrl(url, parseQueryString)
   assert(url, 'parse expect a non-nil value')
   local href = url
-  local chunk, protocol = url:match("^(([a-z0-9+]+)://)")
+  local chunk, protocol = url:match("^(([a-zA-Z0-9+]+)://)")
   url = url:sub((chunk and #chunk or 0) + 1)
 
   local auth
