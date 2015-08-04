@@ -42,7 +42,18 @@ local boundary = require('boundary')
 local io = require('io')
 local hrtime = require('uv').Process.hrtime
 
-framework.version = '0.9.7'
+local callable = function (class, func)
+  class.meta.__call = func 
+end
+
+local factory = function (class)
+  local mt = getmetatable(class)
+  mt.__call = function (t, ...)
+    return t:new(...)
+  end
+end
+
+framework.version = '0.9.9'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -54,80 +65,6 @@ framework.functional = {}
 framework.table = {}
 framework.util = {}
 framework.http = {}
-
--- Remove this when we migrate to luvit 2.0.x
-function framework.util.parseUrl(url, parseQueryString)
-  assert(url, 'parse expect a non-nil value')
-  local href = url
-  local chunk, protocol = url:match("^(([a-z0-9+]+)://)")
-  url = url:sub((chunk and #chunk or 0) + 1)
-
-  local auth
-  chunk, auth = url:match('(([0-9a-zA-Z]+:?[0-9a-zA-Z]+)@)')
-  url = url:sub((chunk and #chunk or 0) + 1)
-
-  local host
-  local hostname
-  local port
-  if protocol then
-    host = url:match("^([%a%.%d-]+:?%d*)")
-    if host then
-      hostname = host:match("^([^:/]+)")
-      port = host:match(":(%d+)$")
-    end
-  url = url:sub((host and #host or 0) + 1)
-  end
-
-  host = hostname -- Just to be compatible with our code base. Discuss this.
-
-  local path
-  local pathname
-  local search
-  local query
-  local hash
-  hash = url:match("(#.*)$")
-  url = url:sub(1, (#url - (hash and #hash or 0)))
-
-  if url ~= '' then
-    path = url
-    local temp
-    temp = url:match("^[^?]*")
-    if temp ~= '' then
-      pathname = temp
-    end
-    temp = url:sub((pathname and #pathname or 0) + 1)
-    if temp ~= '' then
-      search = temp
-    end
-    if search then
-    temp = search:sub(2)
-      if temp ~= '' then
-        query = temp
-      end
-    end
-  end
-
-  if parseQueryString then
-    query = querystring.parse(query)
-  end
-
-  return {
-    href = href,
-    protocol = protocol,
-    host = host,
-    hostname = hostname,
-    port = port,
-    path = path or '/',
-    pathname = pathname or '/',
-    search = search,
-    query = query,
-    auth = auth,
-    hash = hash
-  }
-end
-
-_url.parse = framework.util.parseUrl
-
 
 do
   local encode_alphabet = {
@@ -323,6 +260,79 @@ function framework.string.trim(self)
 end
 local trim = framework.string.trim
 
+function framework.util.parseUrl(url, parseQueryString)
+  assert(url, 'parse expect a non-nil value')
+  url = trim(url)
+  local href = url
+  local chunk, protocol = url:match("^(([a-zA-Z0-9+]+)://)")
+  url = url:sub((chunk and #chunk or 0) + 1)
+
+  local auth
+  chunk, auth = url:match('(([0-9a-zA-Z]+:?[0-9a-zA-Z]+)@)')
+  url = url:sub((chunk and #chunk or 0) + 1)
+
+  local host
+  local hostname
+  local port
+  if protocol then
+    host = url:match("^([%a%.%d-]+:?%d*)")
+    if host then
+      hostname = host:match("^([^:/]+)")
+      port = host:match(":(%d+)$")
+    end
+  url = url:sub((host and #host or 0) + 1)
+  end
+
+  host = hostname -- Just to be compatible with our code base. Discuss this.
+
+  local path
+  local pathname
+  local search
+  local query
+  local hash
+  hash = url:match("(#.*)$")
+  url = url:sub(1, (#url - (hash and #hash or 0)))
+
+  if url ~= '' then
+    path = url
+    local temp
+    temp = url:match("^[^?]*")
+    if temp ~= '' then
+      pathname = temp
+    end
+    temp = url:sub((pathname and #pathname or 0) + 1)
+    if temp ~= '' then
+      search = temp
+    end
+    if search then
+    temp = search:sub(2)
+      if temp ~= '' then
+        query = temp
+      end
+    end
+  end
+
+  if parseQueryString then
+    query = querystring.parse(query)
+  end
+
+  return {
+    href = href,
+    protocol = protocol,
+    host = host,
+    hostname = hostname,
+    port = port,
+    path = path or '/',
+    pathname = pathname or '/',
+    search = search,
+    query = query,
+    auth = auth,
+    hash = hash
+  }
+end
+
+_url.parse = framework.util.parseUrl
+
 --- Returns the char from a string at the specified position. 
 -- @param str the string from were a char will be extracted. 
 -- @param pos the position in the string. Should be a numeric value greater or equal than 1.
@@ -512,7 +522,7 @@ end
 -- @param link the link to check
 -- @return true if the link is relative.  false otherwise.
 function framework.util.isRelativeLink(link)
-  return not string.match(link, '^https?')
+  return not string.match(string.lower(link), '^https?')
 end
 
 --- Wraps a function to calculate the time passed between the wrap and the function execution.
@@ -873,6 +883,7 @@ exportable(framework.http)
 -- Work as a cache of values
 -- @type Cache
 local Cache = Object:extend()
+factory(Cache, factory)
 
 --- Cache constructor.
 -- @name Cache:new
@@ -1051,6 +1062,7 @@ framework.NetDataSource = NetDataSource
 --- DataSourcePoller class
 -- @type DataSourcePoller
 local DataSourcePoller = Emitter:extend()
+factory(DataSourcePoller)
 
 --- DataSourcePoller constructor.
 -- DataSourcePoller Polls a DataSource at the specified interval and calls a callback when there is some data available.
@@ -1088,6 +1100,7 @@ end
 -- @type Plugin
 local Plugin = Emitter:extend()
 framework.Plugin = Plugin
+factory(Plugin)
 
 --- Plugin constructor.
 -- A base plugin implementation that accept a dataSource and polls periodically for new data and format the output so the boundary meter can collect the metrics.
@@ -1272,6 +1285,7 @@ end
 --- Acumulator Class
 -- @type Accumulator
 local Accumulator = Emitter:extend()
+factory(Accumulator)
 
 --- Accumulator constructor.
 -- Track values and return the delta for accumulated metrics.
@@ -1316,15 +1330,14 @@ function Accumulator:resetAll()
 end
 
 -- The object instance can be used as a function call that calls accumulate.
-Accumulator.meta.__call = function (t, ...) 
-  return t:accumulate(...)  
-end
+callable(Accumulator, function (t, ...) return t:accumulate(...) end)
 
 framework.Accumulator = Accumulator
 
 --- A Collection of DataSourcePoller
 -- @type PollerCollection
 local PollerCollection = Emitter:extend()
+factory(PollerCollection)
 
 --- PollerCollection constructor
 -- @param[opt] pollers a list of poller to initially add to this collection.
@@ -1439,7 +1452,7 @@ function WebRequestDataSource:fetch(context, callback, params)
   end
 
   local req
-  if options.protocol == 'https' then
+  if string.lower(options.protocol) == 'https' then
     req = https.request(options, success)
   else
     req = http.request(options, success)
