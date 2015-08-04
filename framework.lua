@@ -523,7 +523,7 @@ end
 -- @param link the link to check
 -- @return true if the link is relative.  false otherwise.
 function framework.util.isRelativeLink(link)
-  return not string.match(link, '^https?')
+  return not string.match(string.lower(link), '^https?')
 end
 
 --- Wraps a function to calculate the time passed between the wrap and the function execution.
@@ -1453,7 +1453,7 @@ function WebRequestDataSource:fetch(context, callback, params)
   end
 
   local req
-  if options.protocol == 'https' then
+  if string.lower(options.protocol) == 'https' then
     req = https.request(options, success)
   else
     req = http.request(options, success)
