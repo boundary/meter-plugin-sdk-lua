@@ -66,80 +66,6 @@ framework.table = {}
 framework.util = {}
 framework.http = {}
 
--- Remove this when we migrate to luvit 2.0.x
-function framework.util.parseUrl(url, parseQueryString)
-  assert(url, 'parse expect a non-nil value')
-  local href = url
-  local chunk, protocol = url:match("^(([a-zA-Z0-9+]+)://)")
-  url = url:sub((chunk and #chunk or 0) + 1)
-
-  local auth
-  chunk, auth = url:match('(([0-9a-zA-Z]+:?[0-9a-zA-Z]+)@)')
-  url = url:sub((chunk and #chunk or 0) + 1)
-
-  local host
-  local hostname
-  local port
-  if protocol then
-    host = url:match("^([%a%.%d-]+:?%d*)")
-    if host then
-      hostname = host:match("^([^:/]+)")
-      port = host:match(":(%d+)$")
-    end
-  url = url:sub((host and #host or 0) + 1)
-  end
-
-  host = hostname -- Just to be compatible with our code base. Discuss this.
-
-  local path
-  local pathname
-  local search
-  local query
-  local hash
-  hash = url:match("(#.*)$")
-  url = url:sub(1, (#url - (hash and #hash or 0)))
-
-  if url ~= '' then
-    path = url
-    local temp
-    temp = url:match("^[^?]*")
-    if temp ~= '' then
-      pathname = temp
-    end
-    temp = url:sub((pathname and #pathname or 0) + 1)
-    if temp ~= '' then
-      search = temp
-    end
-    if search then
-    temp = search:sub(2)
-      if temp ~= '' then
-        query = temp
-      end
-    end
-  end
-
-  if parseQueryString then
-    query = querystring.parse(query)
-  end
-
-  return {
-    href = href,
-    protocol = protocol,
-    host = host,
-    hostname = hostname,
-    port = port,
-    path = path or '/',
-    pathname = pathname or '/',
-    search = search,
-    query = query,
-    auth = auth,
-    hash = hash
-  }
-end
-
-_url.parse = framework.util.parseUrl
-
-
 do
   local encode_alphabet = {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
@@ -333,6 +259,79 @@ function framework.string.trim(self)
   return string.match(self, '^%s*(.-)%s*$')
 end
 local trim = framework.string.trim
+
+function framework.util.parseUrl(url, parseQueryString)
+  assert(url, 'parse expect a non-nil value')
+  url = trim(url)
+  local href = url
+  local chunk, protocol = url:match("^(([a-zA-Z0-9+]+)://)")
+  url = url:sub((chunk and #chunk or 0) + 1)
+
+  local auth
+  chunk, auth = url:match('(([0-9a-zA-Z]+:?[0-9a-zA-Z]+)@)')
+  url = url:sub((chunk and #chunk or 0) + 1)
+
+  local host
+  local hostname
+  local port
+  if protocol then
+    host = url:match("^([%a%.%d-]+:?%d*)")
+    if host then
+      hostname = host:match("^([^:/]+)")
+      port = host:match(":(%d+)$")
+    end
+  url = url:sub((host and #host or 0) + 1)
+  end
+
+  host = hostname -- Just to be compatible with our code base. Discuss this.
+
+  local path
+  local pathname
+  local search
+  local query
+  local hash
+  hash = url:match("(#.*)$")
+  url = url:sub(1, (#url - (hash and #hash or 0)))
+
+  if url ~= '' then
+    path = url
+    local temp
+    temp = url:match("^[^?]*")
+    if temp ~= '' then
+      pathname = temp
+    end
+    temp = url:sub((pathname and #pathname or 0) + 1)
+    if temp ~= '' then
+      search = temp
+    end
+    if search then
+    temp = search:sub(2)
+      if temp ~= '' then
+        query = temp
+      end
+    end
+  end
+
+  if parseQueryString then
+    query = querystring.parse(query)
+  end
+
+  return {
+    href = href,
+    protocol = protocol,
+    host = host,
+    hostname = hostname,
+    port = port,
+    path = path or '/',
+    pathname = pathname or '/',
+    search = search,
+    query = query,
+    auth = auth,
+    hash = hash
+  }
+end
+
+_url.parse = framework.util.parseUrl
 
 --- Returns the char from a string at the specified position. 
 -- @param str the string from were a char will be extracted. 
