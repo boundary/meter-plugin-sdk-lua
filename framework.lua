@@ -53,7 +53,7 @@ local factory = function (class)
   end
 end
 
-framework.version = '0.9.9'
+framework.version = '0.9.10'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -1452,6 +1452,7 @@ function WebRequestDataSource:fetch(context, callback, params)
   end
 
   local req
+  options.protocol = notEmpty(options.protocol, 'http')
   if string.lower(options.protocol) == 'https' then
     req = https.request(options, success)
   else
