@@ -716,7 +716,7 @@ function framework.util.mean(t)
   if count == 0 then
     return 0
   end
-  local s = sum(add, 0, t) 
+  local s = sum(t) 
   return s/count
 end
 
