@@ -981,6 +981,7 @@ function CachedDataSource:initialize(ds, refresh_by)
   self.refresh_by = refresh_by
   self.expiration = nil
   ds:propagate('error', self)
+  ds:propagate('info', self)
 end
 
 --- Fetch from the provided DataSource or return the cached value
@@ -1073,6 +1074,7 @@ function DataSourcePoller:initialize(pollInterval, dataSource)
   self.pollInterval = (pollInterval < 1000 and 1000) or pollInterval
   self.dataSource = dataSource
   dataSource:propagate('error', self)
+  dataSource:propagate('info', self)
 end
 
 function DataSourcePoller:_poll(callback)
@@ -1121,9 +1123,11 @@ function Plugin:initialize(params, dataSource)
   if not Plugin:_isPoller(dataSource) then
     self.dataSource = DataSourcePoller:new(pollInterval, dataSource)
     self.dataSource:propagate('error', self)
+    self.dataSource:propagate('info', self)
   else
     self.dataSource = dataSource
     dataSource:propagate('error', self)
+    dataSource:propagate('info', self)
   end
   self.source = notEmpty(params.source, os.hostname())
   if (plugin_params) then
@@ -1137,6 +1141,7 @@ function Plugin:initialize(params, dataSource)
   end
 
   self:on('error', function (err) self:error(err) end)
+  self:on('info', function (obj) self:info(obj) end)
 end
 
 function Plugin:printError(title, host, source, msg)
@@ -1188,18 +1193,30 @@ function Plugin:_isPoller(poller)
   return poller.run
 end
 
+function Plugin:handleEvent(eventType, obj)
+  local msg
+  if type(obj) == 'table' and obj.message then
+    msg = obj.message
+  else
+    msg = tostring(obj)
+  end
+  local source = obj.source or self.source
+  if eventType == 'error' then
+    self:printError(self.source .. ' Error', self.source, source, msg)
+  else
+    self:printInfo(self.source .. ' Info', self.source, source, msg)
+  end
+end
+
 --- Called when the Plugin detect and error in one of his components.
 -- @param err the error emitted by one of the component that failed.
-function Plugin:error(err)
-  err = self:onError(err)
-  local msg
-  if type(err) == 'table' and err.message then
-    msg = err.message
-  else
-    msg = tostring(err)
-  end
-  local source = err.source or self.source
-  self:printError(self.source .. ' Error', self.source, source, msg)
+function Plugin:error(obj)
+  obj = self:onError(obj)
+  self:handleEvent('error', obj)
+end
+
+function Plugin:info(obj)
+  self:handleEvent('info', obj)
 end
 
 function Plugin:onError(err)
