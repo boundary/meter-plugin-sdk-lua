@@ -66,6 +66,83 @@ framework.table = {}
 framework.util = {}
 framework.http = {}
 
+local Logger = Object:extend()
+Logger.CRITICAL = 50
+Logger.ERROR = 40
+Logger.WARNING = 30
+Logger.INFO = 20
+Logger.DEBUG = 10
+Logger.NOTSET = 0
+
+function Logger:initialize(stream, level)
+  self.out = stream
+  self.levels = {}
+  self.levels[Logger.CRITICAL] = self.critical
+  self.levels[Logger.ERROR] = self.error
+  self.levels[Logger.WARNING] = self.warning
+  self.levels[Logger.INFO] = self.info
+  self.levels[Logger.DEBUG] = self.debug
+  self:setLevel(level)
+end
+
+function Logger:isEnabledFor(level)
+  return level <= self.level 
+end
+
+function Logger:setLevel(level)
+  self.level = level or Logger.NOTSET
+end
+
+function Logger:write(level_string, message)
+  local formatted = ('%s: %s\n'):format(level_string, message)
+  self.out:write(formatted)
+end
+
+function Logger:info(message)
+  if self:isEnabledFor(Logger.INFO) then
+    self:write('INFO', message) 
+  end
+end
+
+function Logger:warning(message)
+  if self:isEnabledFor(Logger.WARNING) then
+    self:write('WARNING', message)
+  end
+end
+
+function Logger:debug(message)
+  if self:isEnabledFor(Logger.DEBUG) then
+    self:write('DEBUG', message)
+  end
+end
+
+function Logger:error(message)
+  if self:isEnabledFor(Logger.ERROR) then
+    self:write('ERROR', message)
+  end
+end
+
+function Logger:critical(message)
+  if self:isEnabledFor(Logger.CRITICAL) then
+    self:write('CRITICAL', message)
+  end
+end
+
+function Logger:exception(message)
+  if self:isEnabledFor(Logger.ERROR) then
+    self:write('ERROR', message)   
+  end
+end
+
+function Logger:log(level, message)
+  local func = self[level]
+  if func and self:isEnabledFor(level) then
+    func(message)
+  end
+end
+
+framework.Logger = Logger
+
 do
   local encode_alphabet = {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
@@ -1649,3 +1726,5 @@ framework.PollerCollection = PollerCollection
 framework.MeterDataSource = MeterDataSource
 
 return framework
+
+
