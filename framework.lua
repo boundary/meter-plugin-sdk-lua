@@ -41,6 +41,7 @@ local querystring = require('querystring')
 local boundary = require('boundary')
 local io = require('io')
 local hrtime = require('uv').Process.hrtime
+local utils = require('utils')
 
 local callable = function (class, func)
   class.meta.__call = func 
@@ -106,51 +107,55 @@ function Logger:setLevel(level)
   self.level = level or Logger.NOTSET
 end
 
-function Logger:write(level_string, message)
-  local formatted = ('%s: %s\n'):format(level_string, message)
+function Logger:dump(args)
+  return args and utils.dump(args) or ''
+end
+
+function Logger:write(level_string, message, args)
+  local formatted = ('%s: %s %s\n'):format(level_string, message, self:dump(args))
   self.out:write(formatted)
 end
 
-function Logger:info(message)
+function Logger:info(message, args)
   if self:isEnabledFor(Logger.INFO) then
-    self:write('INFO', message) 
+    self:write('INFO', message, args) 
   end
 end
 
-function Logger:warning(message)
+function Logger:warning(message, args)
   if self:isEnabledFor(Logger.WARNING) then
-    self:write('WARNING', message)
+    self:write('WARNING', message, args)
   end
 end
 
-function Logger:debug(message)
+function Logger:debug(message, args)
   if self:isEnabledFor(Logger.DEBUG) then
-    self:write('DEBUG', message)
+    self:write('DEBUG', message, args)
   end
 end
 
-function Logger:error(message)
+function Logger:error(message, args)
   if self:isEnabledFor(Logger.ERROR) then
-    self:write('ERROR', message)
+    self:write('ERROR', message, args)
   end
 end
 
-function Logger:critical(message)
+function Logger:critical(message, args)
   if self:isEnabledFor(Logger.CRITICAL) then
-    self:write('CRITICAL', message)
+    self:write('CRITICAL', message, args)
   end
 end
 
-function Logger:exception(message)
+function Logger:exception(message, args)
   if self:isEnabledFor(Logger.ERROR) then
-    self:write('ERROR', message)   
+    self:write('ERROR', message, args)   
   end
 end
 
-function Logger:log(level, message)
+function Logger:log(level, message, args)
   local func = self[level]
   if func and self:isEnabledFor(level) then
-    func(message)
+    func(message, args)
   end
 end
 
