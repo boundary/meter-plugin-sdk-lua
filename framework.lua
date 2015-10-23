@@ -74,6 +74,19 @@ Logger.INFO = 20
 Logger.DEBUG = 10
 Logger.NOTSET = 0
 
+Logger.level_map = {
+  critical = Logger.CRITICAL,
+  error = Logger.ERROR,
+  warning = Logger.WARNING,
+  info = Logger.INFO,
+  debug = Logger.DEBUG,
+  notset = Logger.NOTSET
+}
+
+function Logger.parseLevel(level)
+  return tonumber(level) or Logger.level_map[level] or Logger.NOTSET
+end
+
 function Logger:initialize(stream, level)
   self.out = stream
   self.levels = {}
@@ -142,6 +155,10 @@ function Logger:log(level, message)
 end
 
 framework.Logger = Logger
+
+local function getDefaultLogger(level)
+  return Logger:new(process.stderr, Logger.parseLevel(level))
+end
 
 do
   local encode_alphabet = {
@@ -1477,6 +1494,7 @@ function WebRequestDataSource:initialize(params)
 
   self.options = options
   self.info = options.meta
+  self.logger = getDefaultLogger(params.debug_level)
 end
 
 function WebRequestDataSource:onError(...)
@@ -1485,6 +1503,7 @@ end
 
 --- Fetch data from the initialized url
 function WebRequestDataSource:fetch(context, callback, params)
+  self.logger:info('WebRequestDataSource:fetch()')
   assert(callback, 'WebRequestDataSource:fetch: callback is required')
 
   local start_time = hrtime()
@@ -1504,6 +1523,7 @@ function WebRequestDataSource:fetch(context, callback, params)
       res:on('end', function ()
         local exec_time = hrtime() - start_time
         success, error = pcall(function () 
+          self.log('WebRequestDataSource:fetch() - Got response')
           self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
         if not success then
           self:emit('error', error)
@@ -1515,6 +1535,7 @@ function WebRequestDataSource:fetch(context, callback, params)
         local exec_time = hrtime() - start_time
         buffer = buffer .. data
         if not self.wait_for_end then
+          self.logger:debug('WebRequestDataSource:fetch() - Got response')
           self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode})
           res:destroy()
         end
@@ -1547,12 +1568,15 @@ function WebRequestDataSource:fetch(context, callback, params)
   local req
   options.protocol = notEmpty(options.protocol, 'http')
   if string.lower(options.protocol) == 'https' then
+    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTPS request')
     req = https.request(options, success)
   else
+    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTP request')
     req = http.request(options, success)
   end
 
   if body and #body > 0 then
+    self.logger:debug('WebRequestDataSource:fetch() - Sending data inside body')
     req:write(body)
   end
 
