@@ -1528,7 +1528,7 @@ function WebRequestDataSource:fetch(context, callback, params)
       res:on('end', function ()
         local exec_time = hrtime() - start_time
         success, error = pcall(function () 
-          self.log('WebRequestDataSource:fetch() - Got response')
+          self.log('WebRequestDataSource:fetch() - Got response as', { status_code = res.statusCode, body = buffer })
           self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
         if not success then
           self:emit('error', error)
@@ -1540,7 +1540,7 @@ function WebRequestDataSource:fetch(context, callback, params)
         local exec_time = hrtime() - start_time
         buffer = buffer .. data
         if not self.wait_for_end then
-          self.logger:debug('WebRequestDataSource:fetch() - Got response')
+          self.logger:debug('WebRequestDataSource:fetch() - Got response as', { status_code = res.statusCode, body = buffer } )
           self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode})
           res:destroy()
         end
@@ -1573,15 +1573,15 @@ function WebRequestDataSource:fetch(context, callback, params)
   local req
   options.protocol = notEmpty(options.protocol, 'http')
   if string.lower(options.protocol) == 'https' then
-    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTPS request')
+    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTPS request using', options)
     req = https.request(options, success)
   else
-    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTP request')
+    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTP request using', options)
     req = http.request(options, success)
   end
 
   if body and #body > 0 then
-    self.logger:debug('WebRequestDataSource:fetch() - Sending data inside body')
+    self.logger:debug('WebRequestDataSource:fetch() - Sending data inside for body as', body)
     req:write(body)
   end
 
