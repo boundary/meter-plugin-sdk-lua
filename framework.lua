@@ -53,7 +53,7 @@ local factory = function (class)
   end
 end
 
-framework.version = '0.9.11'
+framework.version = '0.9.12'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -322,7 +322,6 @@ function framework.util.parseUrl(url, parseQueryString)
     host = host,
     hostname = hostname,
     port = port,
-    path = path or '/',
     pathname = pathname or '/',
     search = search,
     query = query,
