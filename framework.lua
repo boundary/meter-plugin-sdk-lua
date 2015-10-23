@@ -112,7 +112,7 @@ function Logger:dump(args)
 end
 
 function Logger:write(level_string, message, args)
-  local formatted = ('%s: %s %s\n'):format(level_string, message, self:dump(args))
+  local formatted = ('%s:\t%s %s\n'):format(level_string, message, self:dump(args))
   self.out:write(formatted)
 end
 
