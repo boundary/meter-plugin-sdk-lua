@@ -108,7 +108,7 @@ function Logger:setLevel(level)
 end
 
 function Logger:dump(args)
-  return args and utils.dump(args) or ''
+  return args and utils.dump(args, nil, true) or ''
 end
 
 function Logger:write(level_string, message, args)
