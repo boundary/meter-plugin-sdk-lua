@@ -1534,7 +1534,7 @@ function WebRequestDataSource:fetch(context, callback, params)
   local buffer = ''
 
   local success = function (res)
-    if self.wait_for_end then
+    if self.wait_for_end or isHttpRedirect(res.statusCode) then
       res:on('end', function ()
         local exec_time = hrtime() - start_time
         success, error = pcall(function () 
