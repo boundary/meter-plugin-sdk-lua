@@ -54,7 +54,7 @@ local factory = function (class)
   end
 end
 
-framework.version = '0.9.13'
+framework.version = '0.9.14'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
