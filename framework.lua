@@ -1528,7 +1528,7 @@ function WebRequestDataSource:fetch(context, callback, params)
       res:on('end', function ()
         local exec_time = hrtime() - start_time
         success, error = pcall(function () 
-          self.log('WebRequestDataSource:fetch() - Got response as', { status_code = res.statusCode, body = buffer })
+          self.log('WebRequestDataSource:fetch() - Got response as', { headers = res.headers, status_code = res.statusCode, body = buffer })
           self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
         if not success then
           self:emit('error', error)
@@ -1540,7 +1540,7 @@ function WebRequestDataSource:fetch(context, callback, params)
         local exec_time = hrtime() - start_time
         buffer = buffer .. data
         if not self.wait_for_end then
-          self.logger:debug('WebRequestDataSource:fetch() - Got response as', { status_code = res.statusCode, body = buffer } )
+          self.logger:debug('WebRequestDataSource:fetch() - Got response as', { headers = res.headers, status_code = res.statusCode, body = buffer } )
           self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode})
           res:destroy()
         end
