@@ -638,6 +638,13 @@ function framework.util.isHttpSuccess(status)
   return status >= 200 and status < 300
 end
 
+-- Check if an HTTP Status code is of a redirect kind.
+-- @param status the status code number
+-- @return true if status code is a redirect one.
+function framework.util.isHttpRedirect(status)
+  return status >= 300 and status < 400 
+end
+
 --- Round a number by the to the specified decimal places.
 -- @param val the value that will be rounded
 -- @param decimal the number of decimal places
