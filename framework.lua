@@ -153,9 +153,9 @@ function Logger:exception(message, args)
 end
 
 function Logger:log(level, message, args)
-  local func = self[level]
+  local func = self.levels[level]
   if func and self:isEnabledFor(level) then
-    func(message, args)
+    func(self, message, args)
   end
 end
 
