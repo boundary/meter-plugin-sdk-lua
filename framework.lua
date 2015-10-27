@@ -1539,7 +1539,7 @@ function WebRequestDataSource:fetch(context, callback, params)
         local exec_time = hrtime() - start_time
         success, error = pcall(function () 
           self.logger:debug('WebRequestDataSource:fetch() - Got response as', { headers = res.headers, status_code = res.statusCode, body = buffer })
-          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
+          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode, max_redirects_reached = res.max_redirects_reached}) end)
         if not success then
           self:emit('error', error)
         end
@@ -1551,7 +1551,7 @@ function WebRequestDataSource:fetch(context, callback, params)
         buffer = buffer .. data
         if not self.wait_for_end then
           self.logger:debug('WebRequestDataSource:fetch() - Got response as', { headers = res.headers, status_code = res.statusCode, body = buffer } )
-          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode})
+          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode, max_redirects_reached = max_redirects_reached})
           res:destroy()
         end
       end)
@@ -1598,6 +1598,8 @@ function WebRequestDataSource:fetch(context, callback, params)
         else
           self.logger:debug('WebRequestDataSource:fetch() - Max redirects reached!', self.max_redirects)
           self:emit('error', 'Max redirects reached!')
+          res.max_redirects_reached = true
+          callback(res)
         end
       else
         callback(res)
