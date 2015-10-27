@@ -54,7 +54,7 @@ local factory = function (class)
   end
 end
 
-framework.version = '0.9.13'
+framework.version = '0.9.14'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -636,6 +636,13 @@ end
 -- @return true if status code is a success one.
 function framework.util.isHttpSuccess(status)
   return status >= 200 and status < 300
+end
+
+-- Check if an HTTP Status code is of a redirect kind.
+-- @param status the status code number
+-- @return true if status code is a redirect one.
+function framework.util.isHttpRedirect(status)
+  return status >= 300 and status < 400 
 end
 
 --- Round a number by the to the specified decimal places.
@@ -1499,6 +1506,8 @@ function WebRequestDataSource:initialize(params)
 
   self.options = options
   self.info = options.meta
+  self.follow_redirects = options.follow_redirects
+  self.max_redirects = options.max_redirects or 5
   self.logger = getDefaultLogger(params.debug_level)
 end
 
@@ -1507,6 +1516,7 @@ function WebRequestDataSource:onError(...)
 end
 
 --- Fetch data from the initialized url
+local isHttpRedirect = framework.util.isHttpRedirect
 function WebRequestDataSource:fetch(context, callback, params)
   self.logger:info('WebRequestDataSource:fetch()')
   assert(callback, 'WebRequestDataSource:fetch: callback is required')
@@ -1524,12 +1534,12 @@ function WebRequestDataSource:fetch(context, callback, params)
   local buffer = ''
 
   local success = function (res)
-    if self.wait_for_end then
+    if self.wait_for_end or isHttpRedirect(res.statusCode) then
       res:on('end', function ()
         local exec_time = hrtime() - start_time
         success, error = pcall(function () 
-          self.log('WebRequestDataSource:fetch() - Got response as', { status_code = res.statusCode, body = buffer })
-          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode}) end)
+          self.logger:debug('WebRequestDataSource:fetch() - Got response as', { headers = res.headers, status_code = res.statusCode, body = buffer })
+          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode, max_redirects_reached = res.max_redirects_reached}) end)
         if not success then
           self:emit('error', error)
         end
@@ -1540,8 +1550,8 @@ function WebRequestDataSource:fetch(context, callback, params)
         local exec_time = hrtime() - start_time
         buffer = buffer .. data
         if not self.wait_for_end then
-          self.logger:debug('WebRequestDataSource:fetch() - Got response as', { status_code = res.statusCode, body = buffer } )
-          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode})
+          self.logger:debug('WebRequestDataSource:fetch() - Got response as', { headers = res.headers, status_code = res.statusCode, body = buffer } )
+          self:processResult(context, callback, buffer, {context = self, info = self.info, response_time = exec_time, status_code = res.statusCode, max_redirects_reached = max_redirects_reached})
           res:destroy()
         end
       end)
@@ -1570,27 +1580,49 @@ function WebRequestDataSource:fetch(context, callback, params)
     options.headers['Content-Length'] = #body
   end
 
-  local req
-  options.protocol = notEmpty(options.protocol, 'http')
-  if string.lower(options.protocol) == 'https' then
-    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTPS request using', options)
-    req = https.request(options, success)
-  else
-    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTP request using', options)
-    req = http.request(options, success)
-  end
+  local max_redirects = self.max_redirects or 5
+  local request
+  request = function (options, callback, max_redirects)
+    local handleResponse = function (res)
+      if self.follow_redirects and isHttpRedirect(res.statusCode) then
+        if max_redirects > 0 then
+          local location = res.headers.location
+          local location_opts = _url.parse(location)
+          local opts = {}
+          opts.method = options.method
+          opts.data = options.data
+          opts.headers  = options.headers
+          opts = merge(opts, location_opts)
+          self.logger:debug('WebRequestDataSource:fetch() - Redirecting to', location) 
+          request(opts, callback, max_redirects - 1)  -- Redirect to new url and maintain request options.
+        else
+          self.logger:debug('WebRequestDataSource:fetch() - Max redirects reached!', self.max_redirects)
+          self:emit('error', 'Max redirects reached!')
+          res.max_redirects_reached = true
+          callback(res)
+        end
+      else
+        callback(res)
+      end
+    end
+    options.protocol = notEmpty(options.protocol, 'http')
+    local service = string.lower(options.protocol) == 'https' and https or http 
+    self.logger:debug('WebRequestDataSource:fetch() - Sending an HTTP/HTTPS request using', options)
+    local req = service.request(options, handleResponse)
 
-  if body and #body > 0 then
-    self.logger:debug('WebRequestDataSource:fetch() - Sending data inside for body as', body)
-    req:write(body)
-  end
+    if body and #body > 0 then
+      self.logger:debug('WebRequestDataSource:fetch() - Sending data inside body as', body)
+      req:write(body)
+    end
 
-  req:propagate('error', self, function (err)
-    err.context = self
-    err.params = params
-    return err
-  end)
-  req:done()
+    req:propagate('error', self, function (err)
+      err.context = self
+      err.params = params
+      return err
+    end)
+    req:done()
+  end
+  request(options, success, self.max_redirects)
 end
 
 --- RandomDataSource class returns a random number each time it get called.
