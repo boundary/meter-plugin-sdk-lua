@@ -54,7 +54,7 @@ local factory = function (class)
   end
 end
 
-framework.version = '0.9.14'
+framework.version = '0.10.0'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -66,6 +66,29 @@ framework.functional = {}
 framework.table = {}
 framework.util = {}
 framework.http = {}
+
+local EventTracker = Object:extend()
+function EventTracker:initialize(delay)
+  self.delay = delay or 5 * 60
+  self.events = {}
+end
+
+function EventTracker:hash(event)
+  return string.format("%s_%s_%s", event.type, event.msg, event.source)
+end
+
+function EventTracker:track(event)
+  local hash = self:hash(event)
+  local time = os.time() + self.delay 
+  self.events[hash] = time  
+end
+
+function EventTracker:canEmit(event, time)
+  local hash = self:hash(event)
+  local next_time = self.events[hash]
+  local result = (not next_time) or next_time <= time
+  return result
+end
 
 local Logger = Object:extend()
 Logger.CRITICAL = 50
@@ -1245,6 +1268,8 @@ function Plugin:initialize(params, dataSource)
     self.tags = notEmpty(params.tags, '')
   end
 
+  self.event_tracker = EventTracker:new()
+
   self:on('error', function (err) self:error(err) end)
   self:on('info', function (obj) self:info(obj) end)
 end
@@ -1306,10 +1331,15 @@ function Plugin:handleEvent(eventType, obj)
     msg = tostring(obj)
   end
   local source = obj.source or self.source
-  if eventType == 'error' then
-    self:printError(self.source .. ' Error', self.source, source, msg)
-  else
-    self:printInfo(self.source .. ' Info', self.source, source, msg)
+  
+  local event = {type = eventType, source = source, msg = msg}
+  if self.event_tracker:canEmit(event, os.time()) then
+    self.event_tracker:track(event)
+    if eventType == 'error' then
+      self:printError(self.source .. ' Error', self.source, source, msg)
+    else
+      self:printInfo(self.source .. ' Info', self.source, source, msg)
+    end
   end
 end
 
@@ -1321,6 +1351,7 @@ function Plugin:error(obj)
 end
 
 function Plugin:info(obj)
+  
   self:handleEvent('info', obj)
 end
 
