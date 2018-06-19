@@ -54,7 +54,7 @@ local factory = function (class)
   end
 end
 
-framework.version = '0.10.0'
+framework.version = '0.11.0'
 framework.boundary = boundary
 framework.params = boundary.param or json.parse(fs.readFileSync('param.json')) or {}
 framework.plugin_params = boundary.plugin or json.parse(fs.readFileSync('plugin.json')) or {}
@@ -96,7 +96,7 @@ Logger.ERROR = 40
 Logger.WARNING = 30
 Logger.INFO = 20
 Logger.DEBUG = 10
-Logger.NOTSET = 0
+Logger.NOTSET = 60
 
 Logger.level_map = {
   critical = Logger.CRITICAL,
@@ -123,11 +123,15 @@ function Logger:initialize(stream, level)
 end
 
 function Logger:isEnabledFor(level)
-  return level <= self.level 
+  return level >= self.level 
 end
 
 function Logger:setLevel(level)
   self.level = level or Logger.NOTSET
+end
+
+function Logger:getLevel()
+  return self.level
 end
 
 function Logger:dump(args)
@@ -1207,12 +1211,17 @@ end
 
 function DataSourcePoller:_poll(callback)
   local success, err = pcall(function () 
-    self.dataSource:fetch(self, callback)
+    self.dataSource:fetch(self, function(...)
+      -- capture the fetch result and then schedule the next poll.
+      -- This eliminates the possibility of getting called before finishing
+      callback(...)
+      timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
+    end)
   end)
   if not success then
     self:emit('error', err) 
+    timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
   end
-  timer.setTimeout(self.pollInterval, function () self:_poll(callback) end)
 end
 
 --- Start polling for data.
@@ -1291,11 +1300,23 @@ function Plugin:printCritical(title, host, source, msg)
 end
 
 function Plugin.formatMessage(name, version, title, host, source, msg)
-  if title and title ~= "" then title = '-'..title else title = "" end
+  local ver = '';
+  local nm ='';
+  if name and name ~= "" then
+    nm = name;
+  end
+  if version and version ~= "" then
+    ver = ' version '..version
+  end
+  if (nm == '' and ver == '') then
+    if title and title ~= "" then title = title else title = "" end
+  else
+    if title and title ~= "" then title = '-'..title else title = "" end
+  end
   if msg and msg ~= "" then msg = '|m:'..msg else msg = "" end
   if host and host ~= "" then host = '|h:'..host else host = "" end
   if source and source ~= "" then source = '|s:'..source else source = "" end
-  return string.format('%s version %s%s%s%s%s', name, version, title, msg, host, source)
+  return string.format('%s%s%s%s%s%s', nm, ver, title, msg, host, source)
 end
 
 function Plugin.formatTags(tags)
@@ -1647,8 +1668,9 @@ function WebRequestDataSource:fetch(context, callback, params)
     end
 
     req:propagate('error', self, function (err)
-      err.context = self
-      err.params = params
+      --err.context = self
+      --err.params = params
+      err = err .. "(" .. options.host  .. ":" ..  options.port .. ")"
       return err
     end)
     req:done()
@@ -1818,5 +1840,3 @@ framework.PollerCollection = PollerCollection
 framework.MeterDataSource = MeterDataSource
 
 return framework
-
-

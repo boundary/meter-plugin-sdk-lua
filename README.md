@@ -1,30 +1,30 @@
-# boundary-plugin-framework-lua
-A starting point to make a library that can easy the development of Boundary Plugin using LUA/Luvit
+# meter-plugin-framework-lua
+A starting point to make a library that can easy the development of Truesight Meter Plugin using LUA/Luvit
 
 ### Example 1 - Generating random metric values
 
 #### plugin.json
 ```
 {
-  "name"            : "Boundary Demo Plugin",
+  "name"            : "Truesight Pulse Demo Plugin",
   "version"         : "1.0",
   "tags"            : "applicationA",
-  "description"     : "This is a sample boundary plugin generating random metric values",
+  "description"     : "This is a sample meter plugin generating random metric values",
   "icon"            : "icon.png",
-  "command"         : "boundary-meter init.lua",
-  "command_lua"     : "boundary-meter init.lua",
+  "command"         : "truesight-meter init.lua",
+  "command_lua"     : "truesight-meter init.lua",
   "postExtract"     : "",
   "postExtract_lua" : "",
   "ignore"          : "",
 
   "metrics"     : [
-    "BOUNDARY_SAMPLE_METRIC"
+    "TRUESIGHT_METER_SAMPLE_METRIC"
   ],
 
   "dashboards"  : [
     {
-      "name"        : "Nginx Plus Summary",
-      "layout"      : "d-w=1&d-h=1&d-pad=5&d-bg=none&d-g-BOUNDARY_SAMPLE_METRIC=1-1-1-1"
+      "name"        : "Sample Dashboard Summary",
+      "layout"      : "d-w=1&d-h=1&d-pad=5&d-bg=none&d-g-TRUESIGHT_METER_SAMPLE_METRIC=1-1-1-1"
     }
   ],
 
@@ -72,7 +72,7 @@ local RandomDataSource = framework.RandomDataSource
 local params = framework.params
 -- For compatability with lua versions prior to 4.1.2
 if framework.plugin_params.name == nil then
-  params.name = 'Boundary Demo Plugin'
+  params.name = Truesight Pulse Demo Plugin'
   params.version = '1.0'
   params.tags = 'applicationA'
 end
@@ -84,7 +84,7 @@ local plugin = Plugin:new(params, data_source)
 
 function plugin:onParseValues(val)
 	local result = {}
-	result['BOUNDARY_SAMPLE_METRIC'] = val
+	result['TRUESIGHT_METER_SAMPLE_METRIC'] = val
 	return result 
 end
 
@@ -94,7 +94,7 @@ plugin:run()
 #### Running the plugin
 
 ```sh
-> boundary-meter --lua init.lua
+> truesight-meter --lua init.lua
 ```
 
 ### Example 2 - Chaining DataSources
@@ -242,7 +242,7 @@ plugin:run()
 Running this Plugin we will see the following ouptut:
 
 ```sh
-> /usr/bin/boundary-meter --lua init.lua
+> /usr/bin/truesight-meter --lua init.lua
 _bevent:Boundary Plugin up : version 1.0|t:info|tags:lua,plugin
 PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/ 1430248084
 PAGE_RESPONSE_TIME 1.000000 http://lua-users.org/wiki/LuaDirectory 1430248084
